@@ -1,14 +1,14 @@
 from dotenv import load_dotenv
 from langchain.agents import create_agent
-from ./
-from rich import print
+from src.prompts.agent_pesquisador_prompt import SYSTEM_PROMPT
+from rich import print 
 
 load_dotenv()
 
 def call_agent(pergunta: str) -> str:
     agent = create_agent(
         model="google_genai:gemini-2.5-flash",
-        system_prompt="Você é um Agente super legal",
+        system_prompt=SYSTEM_PROMPT,
     )
 
     result = agent.invoke(
