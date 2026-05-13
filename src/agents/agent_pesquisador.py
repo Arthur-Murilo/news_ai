@@ -24,7 +24,11 @@ def call_agent(pergunta: str) -> str:
     result = agent.invoke(
         {"messages": [{"role": "user", "content": pergunta}]}
     )
-    return result['messages'][-1].content[0].get('text')
+    
+    content = result['messages'][-1].content
+    if isinstance(content, list):
+        return content[0].get('text', '')
+    return str(content)
 
 if __name__ == '__main__':
     pergunta = input("Digite sua pergunta: ")
