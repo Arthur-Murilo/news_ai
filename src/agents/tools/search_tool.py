@@ -8,10 +8,16 @@ import os
 load_dotenv()
 
 before_days = int(os.getenv("BEFORE_DAYS", "7"))
+default_max_results = int(os.getenv("MAX_SEARCH_RESULTS", "15"))
 client = TavilyClient(os.getenv("TAVILY_API_KEY"))
 
 @tool
-def search_new(query: str, today: str | None = None ,before_days: int = before_days ) -> dict:
+def search_new(
+    query: str,
+    today: str | None = None,
+    before_days: int = before_days,
+    max_results: int = default_max_results,
+) -> dict:
     """
     Realiza buscas avançadas na internet via Tavily para obter informações atualizadas e detalhadas.
     Ideal para pesquisas de notícias, artigos e contextos recentes, com foco em resultados do Brasil.
@@ -21,6 +27,8 @@ def search_new(query: str, today: str | None = None ,before_days: int = before_d
         today: Data base para a pesquisa no formato 'YYYY-MM-DD'. Se omitido, utiliza a data de hoje. 
                Útil para buscar notícias de um dia específico no passado.
         before_days: Janela de dias para olhar para trás a partir da data base (padrão definido no ambiente ou 7 dias).
+        max_results: Quantidade máxima de resultados retornados pela busca. O padrão vem do ambiente e
+                     permite ampliar a coleta quando a newsletter precisa de mais notícias válidas.
     """
     
     if today is None:
@@ -31,10 +39,10 @@ def search_new(query: str, today: str | None = None ,before_days: int = before_d
     response = client.search(
         query=query,
         search_depth="advanced",
-        max_results=5,
+        max_results=max_results,
+        include_raw_content="markdown",
         start_date=(base_date - timedelta(days=before_days)).strftime("%Y-%m-%d"),
-        end_date=base_date.strftime("%Y-%m-%d"),
-        country="brazil"
+        end_date=base_date.strftime("%Y-%m-%d")
     )
 
     return response
