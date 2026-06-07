@@ -23,6 +23,10 @@ No formatter or linter is configured yet. If adding one, update this guide and k
 
 Use `pytest` for new tests. Name files `tests/test_<module>.py` and tests `test_<behavior>()`. Mock Gemini, Tavily, and Resend calls so tests do not require network access or real credentials. Focus coverage on prompt selection, response parsing, date-window handling, and graph node outputs.
 
+## Scope Control
+
+When the user asks for specific items such as `x` and `y`, execute only `x` and `y`. If an additional change like `z` seems useful but was not requested, do not implement it automatically. Finish the requested work first, then suggest `z` in the final response and ask whether the user wants it before making any extra changes. This applies especially to adding tests, refactors, polish, or auxiliary tooling that goes beyond the explicit request.
+
 ## Commit & Pull Request Guidelines
 
 Recent history mostly uses short imperative messages, often Conventional Commit style, for example `feat: adiciona nó de envio de email e integra ao fluxo principal`. Prefer `feat:`, `fix:`, `refactor:`, or `test:` prefixes and keep the summary specific.
