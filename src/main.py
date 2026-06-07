@@ -8,7 +8,7 @@ from typing import cast
 from rich import print
 
 load_dotenv()
-subject = os.getenv("SUBJECT","Inteligencia Artifical")
+subject = os.getenv("SUBJECT", "Inteligencia Artificial")
 
 graph = StateGraph(MessagesState)
 graph.add_node("pesquisador", node_pesquisador)

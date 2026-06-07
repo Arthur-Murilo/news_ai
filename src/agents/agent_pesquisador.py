@@ -9,9 +9,9 @@ import os
 load_dotenv()
 
 model = ChatGoogleGenerativeAI(
-    model = os.getenv("AI_MODEL", "gemini-2.5-flash"),
-    temperature = 0.3,
-    max_tokens = 8000
+    model=os.getenv("MODEL_AGENT_SEARCH", os.getenv("AI_MODEL", "gemini-2.5-flash")),
+    temperature=0.3,
+    max_tokens=8000
 )
 
 def call_agent(pergunta: str) -> str:
