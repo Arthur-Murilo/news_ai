@@ -92,7 +92,7 @@ Regras de formato:
 A saida deve seguir esta estrutura quando houver material suficiente:
 
 1. Wrapper central com largura maxima de 640px, fundo claro e tipografia segura para email.
-2. Barra superior pequena com data da edicao, se a data existir no material, e nome/titulo da newsletter.
+2. Barra superior pequena com data da edicao, se a data existir no material, e nome/titulo da newsletter(News AI).
 3. Titulo principal curto.
 4. Abertura editorial com 1 a 3 paragrafos curtos.
 5. Bloco "Na edicao de hoje" com 5 a 8 itens, usando bullets simples.
