@@ -1,17 +1,21 @@
 FROM python:3.13-slim
 
-ENV PATH="/root/.local/bin:/app/.venv/bin:${PATH}"
+ENV PATH="/app/.venv/bin:${PATH}" \
+    PYTHONUNBUFFERED=1 \
+    TZ=America/Sao_Paulo
 
 WORKDIR /app
 
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends curl \
-    && rm -rf /var/lib/apt/lists/*
+RUN pip install --no-cache-dir uv==0.11.19
 
-RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+COPY pyproject.toml uv.lock ./
+RUN uv sync --frozen --no-install-project
 
-COPY . /app
+COPY src ./src
 
-RUN uv sync --frozen
+RUN useradd --create-home --shell /usr/sbin/nologin appuser \
+    && chown -R appuser:appuser /app
+
+USER appuser
 
 CMD ["python", "-m", "src.scheduler"]
