@@ -114,6 +114,8 @@ Use imagens somente quando o texto bruto trouxer uma URL de imagem clara, por ex
 
 Regras:
 - use no maximo 1 imagem por noticia principal
+- sempre inclua a imagem nas noticias principais quando houver URL confiavel disponivel para aquela noticia
+- nao deixe noticia principal sem imagem se o material trouxer uma URL clara para ela
 - prefira imagens nas 3 a 5 noticias principais, nao em todas as notas rapidas
 - nao use imagem se a URL parecer generica, pequena, logo, favicon, avatar, icone ou se a relacao com a noticia nao estiver clara
 - sempre use `alt` curto baseado no titulo da noticia, sem inventar informacao factual
@@ -176,6 +178,7 @@ Priorize:
 6. detalhes adicionais
 7. link original
 8. imagem sugerida, quando confiavel
+- se a noticia principal tiver `Imagem sugerida` confiavel, renderize a imagem no bloco dela; nao pule a imagem por padrao
 
 # REGRAS PARA NEWSLETTER MAIS ROBUSTA
 

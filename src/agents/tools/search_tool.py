@@ -119,7 +119,7 @@ def _extract_published_date(result: dict) -> date | None:
 
     searchable_text = "\n".join(
         str(result.get(field, ""))[:5000]
-        for field in ("title", "content", "raw_content")
+        for field in ("title", "content")
     )
     return _parse_date(searchable_text)
 
@@ -195,7 +195,6 @@ def search_new(
         search_depth="advanced",
         topic="news",
         max_results=max_results,
-        include_raw_content="markdown",
         include_images=True,
         include_favicon=True,
         start_date=start_date.strftime("%Y-%m-%d"),

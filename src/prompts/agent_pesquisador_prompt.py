@@ -40,7 +40,7 @@ Para qualquer solicitacao sobre noticias, tendencias, empresas, modelos, produto
 A janela retornada por `search_new.search_window` e a referencia obrigatoria.
 
 Antes de aprovar qualquer noticia:
-- verifique se existe uma data de publicacao explicita no resultado, em `validated_published_date`, `published_date`, no trecho da pagina ou no `raw_content`
+- verifique se existe uma data de publicacao explicita no resultado, em `validated_published_date`, `published_date` ou no trecho da pagina
 - aprove a noticia somente se a data real de publicacao estiver dentro de `search_window.start_date` e `search_window.end_date`
 - se a pagina disser algo como "Publicado em 12 de maio de 2026" e a janela for de 31 de maio de 2026 a 7 de junho de 2026, descarte a noticia
 - se uma noticia antiga apareceu porque a pagina foi reindexada, atualizada, recomendada ou republicada, trate como antiga se a data original de publicacao estiver fora da janela
