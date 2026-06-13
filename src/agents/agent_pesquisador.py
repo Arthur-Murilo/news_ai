@@ -1,20 +1,11 @@
-from dotenv import load_dotenv
 from langchain.agents import create_agent
-import os
 from rich import print
 
-from langchain_google_genai import ChatGoogleGenerativeAI
-
 from src.agents.tools.search_tool import search_new
+from src.llm import create_chat_model
 from src.prompts.agent_pesquisador_prompt import get_system_prompt
 
-load_dotenv()
-
-model = ChatGoogleGenerativeAI(
-    model=os.getenv("MODEL_AGENT_SEARCH", os.getenv("AI_MODEL", "gemini-2.5-flash")),
-    temperature=0.3,
-    max_tokens=8000,
-)
+model = create_chat_model("MODEL_AGENT_SEARCH")
 
 
 def _extract_message_text(message_content: object) -> str:
