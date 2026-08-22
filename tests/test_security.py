@@ -13,6 +13,17 @@ def test_sanitize_css_drops_url_and_expression():
     assert sanitize_css("color: red; background: url('https://evil.test')") == "color: red"
 
 
+def test_sanitize_css_rejects_escapes_and_background_shorthand():
+    assert sanitize_css(r"background: \75rl(https://evil.test/pixel.gif)") is None
+    assert sanitize_css(r"color: \72ed") is None
+    html = sanitize_newsletter_html(
+        r'<p style="background: \75rl(https://evil.test/x.gif); color: #111">ok</p>'
+    )
+    assert "evil.test" not in html
+    assert "color: #111" in html
+    assert "ok" in html
+
+
 def test_sanitize_html_strips_scripts_and_event_handlers():
     raw = '<div onclick="alert(1)"><script>alert(1)</script><p>ok</p></div>'
     html = sanitize_newsletter_html(raw)

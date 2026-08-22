@@ -54,7 +54,6 @@ ALLOWED_TAG_ATTRIBUTES = {
 }
 BLOCKED_CONTENT_TAGS = {"script", "style", "iframe", "object", "embed", "svg"}
 ALLOWED_CSS_PROPERTIES = {
-    "background",
     "background-color",
     "border",
     "border-bottom",
@@ -162,7 +161,7 @@ def sanitize_css(style: str | None) -> str | None:
         cleaned_value = value.strip()
         if name not in ALLOWED_CSS_PROPERTIES or not cleaned_value:
             continue
-        if _UNSAFE_CSS.search(cleaned_value):
+        if "\\" in cleaned_value or _UNSAFE_CSS.search(cleaned_value):
             continue
         if any(char in cleaned_value for char in ("<", ">", "{", "}")):
             continue
