@@ -79,7 +79,8 @@ Voce DEVE retornar HTML valido para email.
 Regras de formato:
 - use apenas HTML simples e amplamente compativel com clientes de email
 - use estilos inline para controlar espaco, cor, tamanho, alinhamento e separacao
-- use `div`, `p`, `h1`, `h2`, `h3`, `ul`, `ol`, `li`, `strong`, `em`, `a`, `hr`, `span`, `img`
+- use `table`, `tr`, `td`, `div`, `p`, `h1`, `h2`, `h3`, `ul`, `ol`, `li`, `strong`, `em`, `a`, `hr`, `span`, `img`
+- prefira uma tabela externa de 640px como wrapper do email para compatibilidade com Outlook
 - nao use Markdown
 - nao use blocos de codigo
 - nao use scripts, formularios, iframes, SVGs, animation ou CSS externo

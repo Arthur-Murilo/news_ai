@@ -1,19 +1,18 @@
-import os
-import time
-from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from __future__ import annotations
 
-from dotenv import load_dotenv
+import calendar
+from dataclasses import dataclass
+from datetime import datetime
+import json
+from pathlib import Path
+import time
 
 from src.main import run_workflow
-
-load_dotenv()
-
-SCHEDULE_TIMEZONE = timezone(
-    timedelta(hours=-3),
-    name="America/Sao_Paulo",
+from src.settings import (
+    ALLOWED_SCHEDULE_FREQUENCIES,
+    APP_TIMEZONE,
+    load_settings,
 )
-ALLOWED_SCHEDULE_FREQUENCIES = {"daily", "weekly", "monthly"}
 
 
 @dataclass(frozen=True)
@@ -25,50 +24,57 @@ class ScheduleConfig:
 
 
 def _now() -> datetime:
-    return datetime.now(SCHEDULE_TIMEZONE)
-
-
-def _read_required_env(name: str) -> str:
-    raw_value = os.getenv(name)
-    if raw_value is None or not raw_value.strip():
-        raise ValueError(f"A variavel de ambiente {name} e obrigatoria.")
-    return raw_value.strip()
-
-
-def _read_int_env(name: str) -> int:
-    raw_value = _read_required_env(name)
-    try:
-        return int(raw_value)
-    except ValueError as exc:
-        raise ValueError(
-            f"A variavel de ambiente {name} deve ser um numero inteiro."
-        ) from exc
+    return datetime.now(APP_TIMEZONE)
 
 
 def load_schedule_config() -> ScheduleConfig:
-    frequency = _read_required_env("SCHEDULE_FREQUENCY").lower()
+    settings = load_settings()
+    frequency = settings.schedule_frequency
     if frequency not in ALLOWED_SCHEDULE_FREQUENCIES:
-        raise ValueError(
-            "SCHEDULE_FREQUENCY deve ser daily, weekly ou monthly."
-        )
-
-    hour = _read_int_env("SCHEDULE_HOUR")
-    if not 0 <= hour <= 23:
-        raise ValueError("SCHEDULE_HOUR deve estar entre 0 e 23.")
+        raise ValueError("SCHEDULE_FREQUENCY deve ser daily, weekly ou monthly.")
 
     if frequency == "daily":
-        return ScheduleConfig(frequency=frequency, hour=hour)
+        return ScheduleConfig(frequency=frequency, hour=settings.schedule_hour)
 
     if frequency == "weekly":
-        weekday = _read_int_env("SCHEDULE_WEEKDAY")
-        if not 1 <= weekday <= 7:
-            raise ValueError("SCHEDULE_WEEKDAY deve estar entre 1 e 7.")
-        return ScheduleConfig(frequency=frequency, hour=hour, weekday=weekday)
+        return ScheduleConfig(
+            frequency=frequency,
+            hour=settings.schedule_hour,
+            weekday=settings.schedule_weekday,
+        )
 
-    day = _read_int_env("SCHEDULE_DAY")
-    if not 1 <= day <= 31:
-        raise ValueError("SCHEDULE_DAY deve estar entre 1 e 31.")
-    return ScheduleConfig(frequency=frequency, hour=hour, day=day)
+    return ScheduleConfig(
+        frequency=frequency,
+        hour=settings.schedule_hour,
+        day=settings.schedule_day,
+    )
+
+
+def scheduler_state_path() -> Path:
+    return load_settings().data_dir / "scheduler_state.json"
+
+
+def load_last_execution_key(path: Path | None = None) -> str | None:
+    state_path = path or scheduler_state_path()
+    if not state_path.exists():
+        return None
+    try:
+        payload = json.loads(state_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    key = payload.get("last_success_key")
+    if isinstance(key, str) and key.strip():
+        return key.strip()
+    return None
+
+
+def save_last_execution_key(key: str, path: Path | None = None) -> None:
+    state_path = path or scheduler_state_path()
+    state_path.parent.mkdir(parents=True, exist_ok=True)
+    state_path.write_text(
+        json.dumps({"last_success_key": key}, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
 
 
 def _execution_key(config: ScheduleConfig, now: datetime) -> str:
@@ -77,6 +83,13 @@ def _execution_key(config: ScheduleConfig, now: datetime) -> str:
     if config.frequency == "weekly":
         return now.strftime("%G-W%V")
     return now.strftime("%Y-%m")
+
+
+def _effective_month_day(config: ScheduleConfig, now: datetime) -> int:
+    last_day = calendar.monthrange(now.year, now.month)[1]
+    if config.day is None:
+        return now.day
+    return min(config.day, last_day)
 
 
 def _should_run_now(config: ScheduleConfig, now: datetime) -> bool:
@@ -89,7 +102,7 @@ def _should_run_now(config: ScheduleConfig, now: datetime) -> bool:
     if config.frequency == "weekly":
         return now.isoweekday() == config.weekday and now.hour == config.hour
 
-    return now.day == config.day and now.hour == config.hour
+    return now.day == _effective_month_day(config, now) and now.hour == config.hour
 
 
 def _sleep_until_next_minute() -> None:
@@ -110,7 +123,7 @@ def _describe_schedule(config: ScheduleConfig) -> str:
 
 def run_scheduler() -> None:
     config = load_schedule_config()
-    last_execution_key: str | None = None
+    last_execution_key = load_last_execution_key()
     now = _now()
 
     print(
@@ -133,7 +146,8 @@ def run_scheduler() -> None:
                 run_workflow()
             except Exception as exc:
                 print(f"Falha na execucao agendada: {exc}")
-            finally:
+            else:
+                save_last_execution_key(current_key)
                 last_execution_key = current_key
 
         _sleep_until_next_minute()

@@ -1,56 +1,23 @@
 from datetime import date, datetime, timedelta
-import os
 import re
 import unicodedata
 
-from dotenv import load_dotenv
 from langchain.tools import tool
 from tavily import TavilyClient
 
 from src.security import is_safe_public_url
-
-load_dotenv()
-
-DEFAULT_BEFORE_DAYS = 7
-DEFAULT_MAX_RESULTS = 15
-MIN_BEFORE_DAYS = 1
-MAX_BEFORE_DAYS = 30
-MIN_MAX_RESULTS = 1
-MAX_MAX_RESULTS = 20
-
-
-def _read_int_env(name: str, default: int) -> int:
-    raw_value = os.getenv(name)
-    if raw_value is None or not raw_value.strip():
-        return default
-
-    try:
-        return int(raw_value)
-    except ValueError as exc:
-        raise ValueError(
-            f"A variavel de ambiente {name} deve ser um numero inteiro."
-        ) from exc
-
-
-def _validate_range(name: str, value: int, minimum: int, maximum: int) -> int:
-    if not minimum <= value <= maximum:
-        raise ValueError(f"{name} deve estar entre {minimum} e {maximum}.")
-    return value
-
-
-before_days = _validate_range(
-    "BEFORE_DAYS",
-    _read_int_env("BEFORE_DAYS", DEFAULT_BEFORE_DAYS),
-    MIN_BEFORE_DAYS,
+from src.settings import (
+    APP_TIMEZONE,
+    DEFAULT_BEFORE_DAYS,
+    DEFAULT_MAX_RESULTS,
     MAX_BEFORE_DAYS,
-)
-default_max_results = _validate_range(
-    "MAX_SEARCH_RESULTS",
-    _read_int_env("MAX_SEARCH_RESULTS", DEFAULT_MAX_RESULTS),
-    MIN_MAX_RESULTS,
     MAX_MAX_RESULTS,
+    MIN_BEFORE_DAYS,
+    MIN_MAX_RESULTS,
+    load_settings,
 )
-client = TavilyClient(os.getenv("TAVILY_API_KEY"))
+
+_client: TavilyClient | None = None
 
 MONTHS_PT = {
     "janeiro": 1,
@@ -66,6 +33,22 @@ MONTHS_PT = {
     "novembro": 11,
     "dezembro": 12,
 }
+
+
+def _validate_range(name: str, value: int, minimum: int, maximum: int) -> int:
+    if not minimum <= value <= maximum:
+        raise ValueError(f"{name} deve estar entre {minimum} e {maximum}.")
+    return value
+
+
+def _get_client() -> TavilyClient:
+    global _client
+    api_key = load_settings().tavily_api_key
+    if not api_key:
+        raise ValueError("TAVILY_API_KEY e obrigatoria.")
+    if _client is None:
+        _client = TavilyClient(api_key)
+    return _client
 
 
 def _strip_accents(value: str) -> str:
@@ -111,17 +94,12 @@ def _parse_date(value: object) -> date | None:
     return None
 
 
-def _extract_published_date(result: dict) -> date | None:
+def _official_published_date(result: dict) -> date | None:
     for field in ("published_date", "date"):
         parsed = _parse_date(result.get(field))
         if parsed:
             return parsed
-
-    searchable_text = "\n".join(
-        str(result.get(field, ""))[:5000]
-        for field in ("title", "content")
-    )
-    return _parse_date(searchable_text)
+    return None
 
 
 def _sanitize_url_list(urls: object) -> list[str]:
@@ -156,8 +134,8 @@ def _sanitize_result(result: dict) -> dict | None:
 def search_new(
     query: str,
     today: str | None = None,
-    before_days: int = before_days,
-    max_results: int = default_max_results,
+    before_days: int | None = None,
+    max_results: int | None = None,
 ) -> dict:
     """
     Realiza buscas avancadas na internet via Tavily para obter noticias atuais.
@@ -169,56 +147,63 @@ def search_new(
         max_results: Quantidade maxima de resultados retornados pela busca.
     """
 
-    before_days = _validate_range(
+    settings = load_settings()
+    resolved_before_days = _validate_range(
         "before_days",
-        before_days,
+        before_days if before_days is not None else settings.before_days,
         MIN_BEFORE_DAYS,
         MAX_BEFORE_DAYS,
     )
-    max_results = _validate_range(
+    resolved_max_results = _validate_range(
         "max_results",
-        max_results,
+        max_results if max_results is not None else settings.max_search_results,
         MIN_MAX_RESULTS,
         MAX_MAX_RESULTS,
     )
 
     if today is None:
-        base_date = datetime.now()
+        base_date = datetime.now(APP_TIMEZONE)
     else:
-        base_date = datetime.strptime(today, "%Y-%m-%d")
+        parsed_today = datetime.strptime(today, "%Y-%m-%d")
+        base_date = parsed_today.replace(tzinfo=APP_TIMEZONE)
 
-    start_date = (base_date - timedelta(days=before_days)).date()
+    start_date = (base_date - timedelta(days=resolved_before_days)).date()
     end_date = base_date.date()
 
-    response = client.search(
-        query=query,
-        search_depth="advanced",
-        topic="news",
-        max_results=max_results,
-        include_images=True,
-        include_favicon=True,
-        start_date=start_date.strftime("%Y-%m-%d"),
-        end_date=end_date.strftime("%Y-%m-%d"),
-    )
+    search_kwargs: dict = {
+        "query": query,
+        "search_depth": "advanced",
+        "topic": "news",
+        "max_results": resolved_max_results,
+        "include_images": True,
+        "include_favicon": True,
+        "start_date": start_date.strftime("%Y-%m-%d"),
+        "end_date": end_date.strftime("%Y-%m-%d"),
+    }
+    if settings.include_domains:
+        search_kwargs["include_domains"] = list(settings.include_domains)
+    if settings.exclude_domains:
+        search_kwargs["exclude_domains"] = list(settings.exclude_domains)
+
+    response = _get_client().search(**search_kwargs)
 
     filtered_results = []
-    filtered_out_by_date = []
+    filtered_out = []
 
     for result in response.get("results", []):
         sanitized_result = _sanitize_result(result)
         if sanitized_result is None:
-            filtered_out_by_date.append(
+            filtered_out.append(
                 {
                     "title": result.get("title"),
-                    "url": result.get("url"),
                     "reason": "unsafe_source_url",
                 }
             )
             continue
 
-        published_date = _extract_published_date(sanitized_result)
+        published_date = _official_published_date(sanitized_result)
         if published_date and not (start_date <= published_date <= end_date):
-            filtered_out_by_date.append(
+            filtered_out.append(
                 {
                     "title": sanitized_result.get("title"),
                     "url": sanitized_result.get("url"),
@@ -237,13 +222,21 @@ def search_new(
     response["search_window"] = {
         "start_date": start_date.isoformat(),
         "end_date": end_date.isoformat(),
-        "before_days": before_days,
-        "date_filter_rule": "Reject explicit publication dates outside this window.",
+        "before_days": resolved_before_days,
+        "date_filter_rule": (
+            "Reject only official published_date/date fields outside this window. "
+            "Dates found in title or body are not used as a veto."
+        ),
     }
-    response["filtered_out_by_date"] = filtered_out_by_date
+    response["filtered_out_by_date"] = filtered_out
     response["safety"] = {
         "allowed_url_schemes": ["http", "https"],
         "blocked_hosts": ["localhost", "private_ips", "loopback_ips"],
     }
 
     return response
+
+
+# Kept for older imports and tests that want the default env window.
+before_days = DEFAULT_BEFORE_DAYS
+default_max_results = DEFAULT_MAX_RESULTS
