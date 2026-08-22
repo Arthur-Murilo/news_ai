@@ -126,7 +126,7 @@ Regras:
 # ESTILO VISUAL HTML
 
 Use uma estetica editorial simples:
-- fundo externo: #f4f1ea ou #f6f4ef
+- fundo externo: #f4f1ea ou #f6f4ef, usando apenas `background-color` (nunca `background`, `url()` ou imagens CSS)
 - corpo interno: #ffffff
 - texto principal: #1f1f1f
 - texto secundario: #666666
