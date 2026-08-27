@@ -36,3 +36,11 @@ For pull requests, include the purpose, key files changed, test commands run, an
 ## Security & Configuration Tips
 
 Never commit `.env` or API keys. Keep recipient addresses, sender configuration, model names, and search limits configurable through environment variables when practical. Avoid logging full raw search responses if they may include sensitive content.
+
+## Cursor Cloud specific instructions
+
+- Toolchain: `uv` manages both Python 3.13 and dependencies. The startup update script runs `uv sync`, which provisions the pinned Python (`.python-version` = 3.13.9) and installs the locked deps into `.venv`. `uv` lives in `~/.local/bin`; if `uv: command not found`, add that to `PATH`. Run everything via `uv run ...`.
+- Credentials are validated at import time, not just at call time. Importing `src.main` (or building the graph) transitively imports the agents: with `PROVIDER_LLM=google` (the default), `src/llm.py` raises if `GOOGLE_API_KEY` is unset, and `src/agents/tools/search_tool.py` instantiates `TavilyClient` at module load, so `TAVILY_API_KEY` must be set even to import the search node or compile the full graph. To inspect/compile the graph without a Google key, use `PROVIDER_LLM=ollama` (the Ollama provider is not validated at import); a `TAVILY_API_KEY` value (even a dummy) is still required to import the search tool.
+- Running `uv run python -m src.main` performs a live Tavily news search, a real LLM synthesis, and sends an actual email via Resend. It needs `TAVILY_API_KEY`, `RESEND_API_KEY`, an LLM (`GOOGLE_API_KEY` or a reachable Ollama via `OLLAMA_BASE_URL`), plus `NEWSLETTER_FROM_EMAIL` and `NEWSLETTER_TO_EMAIL`. Configure via `.env` (copy from `.env-example`); env vars injected by the platform also work since the code only calls `load_dotenv()` to augment them.
+- No linter and no test suite are configured yet: `uv run pytest` fails because `pytest` is not installed and there is no `tests/` directory. Add tests under `tests/` with mocked Gemini/Tavily/Resend before relying on `uv run pytest`.
+- Pure logic (URL safety in `src/security.py`, date parsing/sanitization in `src/agents/tools/search_tool.py`) can be exercised offline without live API calls once a `TAVILY_API_KEY` value is present for import.
