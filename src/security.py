@@ -1,5 +1,6 @@
 import html
 import ipaddress
+import re
 from html.parser import HTMLParser
 from urllib.parse import urlsplit
 
@@ -18,6 +19,12 @@ ALLOWED_HTML_TAGS = {
     "p",
     "span",
     "strong",
+    "table",
+    "tbody",
+    "td",
+    "th",
+    "thead",
+    "tr",
     "ul",
 }
 VOID_HTML_TAGS = {"br", "hr", "img"}
@@ -38,8 +45,62 @@ ALLOWED_TAG_ATTRIBUTES = {
     "strong": {"style"},
     "em": {"style"},
     "br": set(),
+    "table": {"style", "align", "width", "cellpadding", "cellspacing", "border"},
+    "tbody": {"style"},
+    "thead": {"style"},
+    "tr": {"style", "align"},
+    "td": {"style", "align", "width", "colspan", "valign"},
+    "th": {"style", "align", "width", "colspan", "valign"},
 }
 BLOCKED_CONTENT_TAGS = {"script", "style", "iframe", "object", "embed", "svg"}
+ALLOWED_CSS_PROPERTIES = {
+    "background-color",
+    "border",
+    "border-bottom",
+    "border-color",
+    "border-left",
+    "border-radius",
+    "border-right",
+    "border-style",
+    "border-top",
+    "border-width",
+    "color",
+    "display",
+    "font-family",
+    "font-size",
+    "font-style",
+    "font-weight",
+    "height",
+    "letter-spacing",
+    "line-height",
+    "list-style",
+    "list-style-type",
+    "margin",
+    "margin-bottom",
+    "margin-left",
+    "margin-right",
+    "margin-top",
+    "max-height",
+    "max-width",
+    "min-height",
+    "min-width",
+    "overflow",
+    "padding",
+    "padding-bottom",
+    "padding-left",
+    "padding-right",
+    "padding-top",
+    "text-align",
+    "text-decoration",
+    "vertical-align",
+    "white-space",
+    "width",
+}
+_UNSAFE_CSS = re.compile(
+    r"url\s*\(|expression\s*\(|javascript:|@import|behavior\s*:|-moz-binding|\\\\",
+    re.IGNORECASE,
+)
+_HTML_HINTS = ("<div", "<html", "<h1", "<h2", "<h3", "<p", "<table", "<span", "<ul")
 
 
 def is_safe_public_url(url: str | None) -> bool:
@@ -87,6 +148,37 @@ def is_safe_public_url(url: str | None) -> bool:
     return True
 
 
+def sanitize_css(style: str | None) -> str | None:
+    if not style or not style.strip():
+        return None
+
+    parts: list[str] = []
+    for declaration in style.split(";"):
+        if ":" not in declaration:
+            continue
+        property_name, value = declaration.split(":", 1)
+        name = property_name.strip().lower()
+        cleaned_value = value.strip()
+        if name not in ALLOWED_CSS_PROPERTIES or not cleaned_value:
+            continue
+        if "\\" in cleaned_value or _UNSAFE_CSS.search(cleaned_value):
+            continue
+        if any(char in cleaned_value for char in ("<", ">", "{", "}")):
+            continue
+        parts.append(f"{name}: {cleaned_value}")
+
+    if not parts:
+        return None
+    return "; ".join(parts)
+
+
+def looks_like_html(text: str) -> bool:
+    stripped = text.strip().lower()
+    if not stripped.startswith("<"):
+        return False
+    return any(hint in stripped for hint in _HTML_HINTS)
+
+
 class SafeHtmlSanitizer(HTMLParser):
     def __init__(self) -> None:
         super().__init__(convert_charrefs=False)
@@ -117,6 +209,10 @@ class SafeHtmlSanitizer(HTMLParser):
                 continue
             if tag == "img" and attr_name == "src" and not is_safe_public_url(value):
                 return None
+            if attr_name == "style":
+                value = sanitize_css(value)
+                if value is None:
+                    continue
             sanitized_attrs.append((attr_name, value))
 
         if tag == "a" and not any(name == "href" for name, _ in sanitized_attrs):
@@ -167,7 +263,9 @@ class SafeHtmlSanitizer(HTMLParser):
         if self.block_depth > 0 or not self.tag_stack:
             return
 
-        self.output.append(f"</{self.tag_stack.pop()}>")
+        stacked = self.tag_stack[-1]
+        if tag == stacked or (tag == "a" and stacked == "span"):
+            self.output.append(f"</{self.tag_stack.pop()}>")
 
     def handle_data(self, data: str) -> None:
         if self.block_depth == 0:

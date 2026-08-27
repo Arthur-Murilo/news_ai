@@ -54,6 +54,9 @@ O arquivo [`.env-example`](.env-example) documenta a configuracao minima. As var
 - `SUBJECT`: tema inicial enviado ao grafo principal.
 - `BEFORE_DAYS`: janela de dias usada na busca de noticias. Faixa valida: `1` a `30`.
 - `MAX_SEARCH_RESULTS`: limite de resultados retornados pelo Tavily. Faixa valida: `1` a `20`.
+- `DATA_DIR`: diretorio local para preview, memoria de envios e estado do scheduler.
+- `NEWSLETTER_PREVIEW_PATH`: arquivo HTML gerado em dry-run ou antes do envio.
+- `NEWS_INCLUDE_DOMAINS` / `NEWS_EXCLUDE_DOMAINS`: filtros opcionais de dominio para o Tavily, separados por virgula.
 - `SCHEDULE_FREQUENCY`: frequencia do scheduler do container. Valores validos: `daily`, `weekly`, `monthly`.
 - `SCHEDULE_HOUR`: hora de execucao no timezone `America/Sao_Paulo`. Faixa valida: `0` a `23`.
 - `SCHEDULE_WEEKDAY`: usado apenas quando `SCHEDULE_FREQUENCY=weekly`. Faixa valida: `1` a `7`, com `1=segunda` e `7=domingo`.
@@ -91,6 +94,23 @@ Executa o workflow completo:
 
 ```bash
 uv run python -m src.main
+```
+
+Opcoes de CLI:
+
+```bash
+uv run python -m src.main --subject "Agentes de IA" --days 5 --dry-run
+uv run python -m src.main --skip-email
+```
+
+- `--dry-run` e `--skip-email` nao disparam o Resend. O HTML final e gravado em `NEWSLETTER_PREVIEW_PATH`.
+- Se a pesquisa for `NAO APTO` ou ocorrer erro, o fluxo nao formata newsletter e nao envia email.
+
+Roda a suite de testes sem chamadas de rede:
+
+```bash
+uv sync --group dev
+uv run pytest
 ```
 
 Executa apenas o agente pesquisador de forma interativa:
@@ -173,24 +193,29 @@ src/
     node_pesquisador.py
     node_send_email.py
   prompts/
-    agent_fomatador_prompt.py
+    agent_formatador_prompt.py
     agent_pesquisador_prompt.py
   main.py
+  research.py
   scheduler.py
   security.py
+  sent_news.py
+  settings.py
+  state.py
+tests/
 ```
 
 ## Detalhes tecnicos
 
-- O projeto usa `MessagesState` do LangGraph para encadear as mensagens entre os nos.
+- O projeto usa `NewsletterState` no LangGraph para encadear mensagens, status da pesquisa, HTML e flags de envio.
 - O `search_new` em [`src/agents/tools/search_tool.py`](src/agents/tools/search_tool.py) aplica busca no Tavily com `topic="news"`, valida a janela de datas e remove links inseguros antes de devolver resultados ao agente.
 - Cada agente e instanciado a partir de `src/llm.py`, que escolhe Google Gemini ou Ollama conforme `PROVIDER_LLM`.
 - O envio final acontece em [`src/nodes/node_send_email.py`](src/nodes/node_send_email.py) via `resend.Emails.send`, com sanitizacao do HTML e filtragem de links e imagens inseguras.
 
 ## Observacoes importantes
 
-- O assunto usado para iniciar a pesquisa vem de `SUBJECT`; se nao existir, o valor padrao atual e `Inteligencia Artifical`.
-- Ainda nao existe suite de testes. Se adicionar testes, prefira `pytest` e mocks para Gemini, Tavily e Resend.
+- O assunto usado para iniciar a pesquisa vem de `SUBJECT`; se nao existir, o valor padrao atual e `Inteligencia Artificial`.
+- A suite em `tests/` cobre parse de pesquisa, sanitizacao, janela de datas, memoria de envios, scheduler e roteamento do grafo. Gemini, Tavily e Resend sao mockados.
 
 ## Dependencias principais
 
