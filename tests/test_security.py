@@ -59,4 +59,31 @@ def test_sanitize_html_ignores_mismatched_end_tags():
 
 def test_looks_like_html():
     assert looks_like_html("<div>newsletter</div>")
+    assert looks_like_html("```html\n<div>newsletter</div>\n```")
     assert not looks_like_html("Status de validacao: NAO APTO")
+
+
+def test_sanitize_html_strips_head_and_title():
+    raw = (
+        "<!DOCTYPE html>"
+        "<html>"
+        "<head><title>News AI Title</title><meta charset='utf-8'></head>"
+        "<body><table><tr><td>News content</td></tr></table></body>"
+        "</html>"
+    )
+    html = sanitize_newsletter_html(raw)
+    assert "News AI Title" not in html
+    assert html == "<table><tr><td>News content</td></tr></table>"
+    assert looks_like_html(html)
+
+
+def test_sanitize_html_handles_conversational_intro_and_comments():
+    raw = (
+        "Aqui esta a newsletter formatada:\n"
+        "<!-- Comentario de layout -->\n"
+        '<table width="100%"><tr><td>Conteudo principal</td></tr></table>'
+    )
+    html = sanitize_newsletter_html(raw)
+    assert "Aqui esta" not in html
+    assert html == '<table width="100%"><tr><td>Conteudo principal</td></tr></table>'
+    assert looks_like_html(html)

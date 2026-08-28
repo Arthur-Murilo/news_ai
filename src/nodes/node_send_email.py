@@ -8,7 +8,7 @@ from src.security import looks_like_html, sanitize_newsletter_html
 from src.sent_news import mark_research_as_sent
 from src.settings import APP_TIMEZONE, load_settings
 from src.state import STATUS_ERRO, NewsletterState
-from src.utils import extract_message_text
+from src.utils import extract_message_text, strip_markdown_code_fences
 
 
 def write_preview(html: str, path: Path | None = None) -> Path:
@@ -24,7 +24,7 @@ def send_email(html: str) -> str:
     settings.validate_for_workflow(skip_email=False)
     resend.api_key = settings.resend_api_key
     today = datetime.now(APP_TIMEZONE).strftime("%Y-%m-%d")
-    sanitized_html = sanitize_newsletter_html(html)
+    sanitized_html = sanitize_newsletter_html(strip_markdown_code_fences(html))
     if not sanitized_html.strip() or not looks_like_html(sanitized_html):
         raise ValueError("HTML da newsletter invalido apos sanitizacao.")
 
@@ -45,7 +45,7 @@ def node_send_email(state: NewsletterState):
         if not html:
             html = extract_message_text(state["messages"][-1].content)
 
-        sanitized_html = sanitize_newsletter_html(html)
+        sanitized_html = sanitize_newsletter_html(strip_markdown_code_fences(html))
         if not sanitized_html.strip() or not looks_like_html(sanitized_html):
             raise ValueError("HTML da newsletter invalido apos sanitizacao.")
 

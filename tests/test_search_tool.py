@@ -107,3 +107,18 @@ def test_search_passes_optional_domain_filters(env_defaults, monkeypatch):
 
     assert captured["include_domains"] == ["example.com"]
     assert captured["exclude_domains"] == ["spam.test"]
+
+
+def test_search_handles_client_exception(env_defaults, monkeypatch):
+    class FailingClient:
+        def search(self, **kwargs):
+            raise TimeoutError("Connection timed out")
+
+    monkeypatch.setattr(
+        "src.agents.tools.search_tool._get_client",
+        lambda: FailingClient(),
+    )
+
+    response = search_new.invoke({"query": "IA", "today": "2026-08-22"})
+    assert "error" in response
+    assert response["results"] == []

@@ -78,6 +78,7 @@ class Settings:
     schedule_hour: int
     schedule_weekday: int
     schedule_day: int
+    llm_timeout_seconds: int = 300
 
     def validate_for_workflow(self, *, skip_email: bool = False) -> None:
         if not self.tavily_api_key:
@@ -170,4 +171,10 @@ def load_settings() -> Settings:
         schedule_hour=hour,
         schedule_weekday=weekday,
         schedule_day=day,
+        llm_timeout_seconds=_validate_range(
+            "LLM_TIMEOUT_SECONDS",
+            _read_int("LLM_TIMEOUT_SECONDS", 300),
+            10,
+            1800,
+        ),
     )

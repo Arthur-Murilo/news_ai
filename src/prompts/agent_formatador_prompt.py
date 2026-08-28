@@ -80,9 +80,9 @@ Regras de formato:
 - use apenas HTML simples e amplamente compativel com clientes de email
 - use estilos inline para controlar espaco, cor, tamanho, alinhamento e separacao
 - use `table`, `tr`, `td`, `div`, `p`, `h1`, `h2`, `h3`, `ul`, `ol`, `li`, `strong`, `em`, `a`, `hr`, `span`, `img`
-- prefira uma tabela externa de 640px como wrapper do email para compatibilidade com Outlook
-- nao use Markdown
-- nao use blocos de codigo
+- inicie diretamente com uma tabela externa de 640px como wrapper do email para compatibilidade com Outlook
+- nao use tags `<doctype>`, `<html>`, `<head>` ou `<body>`
+- nao use Markdown nem blocos de codigo (```html)
 - nao use scripts, formularios, iframes, SVGs, animation ou CSS externo
 - nao use imagens em base64
 - preserve links exatamente como recebidos

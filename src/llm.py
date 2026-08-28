@@ -17,12 +17,12 @@ __all__ = [
 ]
 
 
-def _get_ollama_client_kwargs(api_key: str) -> Mapping[str, Any]:
-    if not api_key:
-        return {}
-
-    # Needed when using Ollama Cloud directly at https://ollama.com.
-    return {"headers": {"Authorization": f"Bearer {api_key}"}}
+def _get_ollama_client_kwargs(api_key: str, timeout: int = 300) -> Mapping[str, Any]:
+    client_kwargs: dict[str, Any] = {"timeout": timeout}
+    if api_key:
+        # Needed when using Ollama Cloud directly at https://ollama.com.
+        client_kwargs["headers"] = {"Authorization": f"Bearer {api_key}"}
+    return client_kwargs
 
 
 def create_chat_model(model_env_var: str):
@@ -43,11 +43,18 @@ def create_chat_model(model_env_var: str):
             model=model_name,
             temperature=0.3,
             max_tokens=8000,
+            timeout=float(settings.llm_timeout_seconds),
+            max_retries=3,
         )
 
     from langchain_ollama import ChatOllama
 
-    client_kwargs = dict(_get_ollama_client_kwargs(settings.ollama_api_key))
+    client_kwargs = dict(
+        _get_ollama_client_kwargs(
+            settings.ollama_api_key,
+            timeout=settings.llm_timeout_seconds,
+        )
+    )
     kwargs: dict[str, Any] = {
         "model": model_name,
         "temperature": 0.3,

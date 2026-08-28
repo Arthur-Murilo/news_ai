@@ -57,3 +57,9 @@ def test_formatter_model_accepts_corrected_env_name(env_defaults, monkeypatch):
     settings = load_settings()
 
     assert settings.model_agent_formater == "gemini-custom"
+
+
+def test_load_settings_reads_llm_timeout_seconds(env_defaults, monkeypatch):
+    monkeypatch.setenv("LLM_TIMEOUT_SECONDS", "450")
+    settings = load_settings()
+    assert settings.llm_timeout_seconds == 450

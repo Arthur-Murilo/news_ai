@@ -4,6 +4,8 @@ import re
 from html.parser import HTMLParser
 from urllib.parse import urlsplit
 
+from src.utils import strip_markdown_code_fences
+
 ALLOWED_HTML_TAGS = {
     "a",
     "br",
@@ -52,7 +54,18 @@ ALLOWED_TAG_ATTRIBUTES = {
     "td": {"style", "align", "width", "colspan", "valign"},
     "th": {"style", "align", "width", "colspan", "valign"},
 }
-BLOCKED_CONTENT_TAGS = {"script", "style", "iframe", "object", "embed", "svg"}
+BLOCKED_CONTENT_TAGS = {
+    "embed",
+    "head",
+    "iframe",
+    "noscript",
+    "object",
+    "script",
+    "style",
+    "svg",
+    "template",
+    "title",
+}
 ALLOWED_CSS_PROPERTIES = {
     "background-color",
     "border",
@@ -100,7 +113,24 @@ _UNSAFE_CSS = re.compile(
     r"url\s*\(|expression\s*\(|javascript:|@import|behavior\s*:|-moz-binding|\\\\",
     re.IGNORECASE,
 )
-_HTML_HINTS = ("<div", "<html", "<h1", "<h2", "<h3", "<p", "<table", "<span", "<ul")
+
+_HTML_HINTS = (
+    "<div",
+    "<html",
+    "<h1",
+    "<h2",
+    "<h3",
+    "<p",
+    "<table",
+    "<span",
+    "<ul",
+    "<ol",
+    "<body",
+    "<main",
+    "<article",
+    "<section",
+    "<header",
+)
 
 
 def is_safe_public_url(url: str | None) -> bool:
@@ -173,10 +203,40 @@ def sanitize_css(style: str | None) -> str | None:
 
 
 def looks_like_html(text: str) -> bool:
-    stripped = text.strip().lower()
-    if not stripped.startswith("<"):
+    if not text or not text.strip():
         return False
-    return any(hint in stripped for hint in _HTML_HINTS)
+    stripped = strip_markdown_code_fences(text).strip()
+    first_tag = stripped.find("<")
+    if first_tag != -1:
+        stripped = stripped[first_tag:].strip()
+    lower = stripped.lower()
+    if not lower.startswith("<"):
+        return False
+    return any(hint in lower for hint in _HTML_HINTS)
+
+
+def _preprocess_html(raw_html: str) -> str:
+    if not raw_html or not raw_html.strip():
+        return ""
+    cleaned = strip_markdown_code_fences(raw_html)
+    cleaned = re.sub(r"<!DOCTYPE[^>]*>", "", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"<!--.*?-->", "", cleaned, flags=re.DOTALL)
+    cleaned = re.sub(
+        r"<head(?:\s+[^>]*)?>.*?</head>",
+        "",
+        cleaned,
+        flags=re.DOTALL | re.IGNORECASE,
+    )
+    cleaned = re.sub(
+        r"<(?:script|style|svg|iframe|noscript|title|template)(?:\s+[^>]*)?>.*?</(?:script|style|svg|iframe|noscript|title|template)>",
+        "",
+        cleaned,
+        flags=re.DOTALL | re.IGNORECASE,
+    )
+    first_tag = cleaned.find("<")
+    if first_tag != -1:
+        cleaned = cleaned[first_tag:]
+    return cleaned.strip()
 
 
 class SafeHtmlSanitizer(HTMLParser):
@@ -292,7 +352,10 @@ class SafeHtmlSanitizer(HTMLParser):
 
 
 def sanitize_newsletter_html(raw_html: str) -> str:
+    cleaned = _preprocess_html(raw_html)
+    if not cleaned:
+        return ""
     sanitizer = SafeHtmlSanitizer()
-    sanitizer.feed(raw_html)
+    sanitizer.feed(cleaned)
     sanitizer.close()
-    return sanitizer.get_html()
+    return sanitizer.get_html().strip()

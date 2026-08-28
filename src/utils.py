@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+
 
 def extract_message_text(message_content: object) -> str:
     if isinstance(message_content, str):
@@ -27,3 +29,20 @@ def extract_message_text(message_content: object) -> str:
         return ""
 
     return str(message_content).strip()
+
+
+def strip_markdown_code_fences(text: str) -> str:
+    cleaned = text.strip()
+    fenced_match = re.search(
+        r"```(?:html)?\s*\n?(.*?)\n?```", cleaned, re.DOTALL | re.IGNORECASE
+    )
+    if fenced_match:
+        return fenced_match.group(1).strip()
+    if cleaned.startswith("```"):
+        lines = cleaned.splitlines()
+        if lines and lines[0].startswith("```"):
+            lines = lines[1:]
+        if lines and lines[-1].startswith("```"):
+            lines = lines[:-1]
+        cleaned = "\n".join(lines).strip()
+    return cleaned

@@ -128,26 +128,40 @@ def _noticia_from_dict(raw: object) -> NoticiaValidada | None:
     )
 
 
+def _clean_json_candidate(candidate: str) -> str:
+    # Remove trailing commas before closing braces/brackets
+    return re.sub(r",\s*([}\]])", r"\1", candidate)
+
+
 def _extract_json_payload(text: str) -> dict[str, Any] | None:
     stripped = text.strip()
-    fenced = re.search(r"```(?:json)?\s*(\{.*\})\s*```", stripped, re.DOTALL)
     candidates = []
-    if fenced:
-        candidates.append(fenced.group(1))
-    if stripped.startswith("{"):
-        candidates.append(stripped)
+
+    # 1. Search for fenced blocks
+    for match in re.finditer(r"```(?:json)?\s*(\{.*?\})\s*```", stripped, re.DOTALL):
+        candidates.append(match.group(1).strip())
+    fenced_greedy = re.search(r"```(?:json)?\s*(\{.*\})\s*```", stripped, re.DOTALL)
+    if fenced_greedy:
+        candidates.append(fenced_greedy.group(1).strip())
+
+    # 2. Extract outermost { ... }
     start = stripped.find("{")
     end = stripped.rfind("}")
     if start != -1 and end > start:
-        candidates.append(stripped[start : end + 1])
+        candidates.append(stripped[start : end + 1].strip())
+
+    if stripped.startswith("{"):
+        candidates.append(stripped)
 
     for candidate in candidates:
-        try:
-            parsed = json.loads(candidate)
-        except json.JSONDecodeError:
-            continue
-        if isinstance(parsed, dict):
-            return parsed
+        for attempt in (candidate, _clean_json_candidate(candidate)):
+            try:
+                parsed = json.loads(attempt, strict=False)
+                if isinstance(parsed, dict):
+                    return parsed
+            except Exception:
+                continue
+
     return None
 
 
@@ -258,12 +272,20 @@ def parse_research_result(raw_text: str) -> ResultadoPesquisa:
         return resultado
 
     status_match = re.search(
-        r"Status de validacao:\s*(.+)",
+        r"(?:Status de validacao|status)\s*[:=]\s*[\"']?([^\"'\n,}]+)",
         text,
         re.IGNORECASE,
     )
-    tema_match = re.search(r"Tema pesquisado:\s*(.+)", text, re.IGNORECASE)
-    janela_match = re.search(r"Janela de pesquisa:\s*(.+)", text, re.IGNORECASE)
+    tema_match = re.search(
+        r"(?:Tema pesquisado|tema)\s*[:=]\s*[\"']?([^\"'\n,}]+)",
+        text,
+        re.IGNORECASE,
+    )
+    janela_match = re.search(
+        r"(?:Janela de pesquisa|janela_pesquisa)\s*[:=]\s*[\"']?([^\"'\n,}]+)",
+        text,
+        re.IGNORECASE,
+    )
 
     pontos_raw = _section_text(
         text,

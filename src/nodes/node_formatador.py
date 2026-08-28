@@ -3,7 +3,7 @@ from langchain_core.messages import AIMessage
 from src.agents.agent_formatador import call_agent_formater
 from src.security import looks_like_html
 from src.state import STATUS_ERRO, NewsletterState
-from src.utils import extract_message_text
+from src.utils import extract_message_text, strip_markdown_code_fences
 
 
 def node_formatador(state: NewsletterState):
@@ -16,7 +16,9 @@ def node_formatador(state: NewsletterState):
                 "O no formatador recebeu uma mensagem vazia do passo anterior."
             )
 
-        resposta_texto = call_agent_formater(text)
+        resposta_texto = strip_markdown_code_fences(
+            extract_message_text(call_agent_formater(text))
+        )
         if not looks_like_html(resposta_texto):
             raise ValueError("O agente formatador nao retornou HTML valido.")
 

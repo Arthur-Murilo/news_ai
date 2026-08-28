@@ -103,3 +103,31 @@ def test_unsafe_news_link_is_dropped_from_item():
     )
     result = parse_research_result(raw)
     assert result.noticias[0].link == ""
+
+
+def test_parse_json_with_intro_and_trailing_commas():
+    raw = (
+        "Tenho material suficiente para compor uma newsletter.\n\n"
+        "{\n"
+        '  "status": "APTO PARA PROXIMA FASE",\n'
+        '  "tema": "Inteligencia Artificial",\n'
+        '  "janela_pesquisa": "2026-08-21 a 2026-08-28",\n'
+        '  "resumo": "Resumo da semana com novidades.",\n'
+        '  "noticias": [\n'
+        "    {\n"
+        '      "titulo": "Meta lanca modelo aberto",\n'
+        '      "fonte": "Phoronix",\n'
+        '      "link": "https://example.com/news",\n'
+        '      "o_que_aconteceu": "Lancamento de modelo",\n'
+        "    },\n"
+        "  ],\n"
+        '  "pontos_atencao": ["Ponto 1"],\n'
+        '  "links_consultados": ["https://example.com/news"]\n'
+        "}\n\n"
+        "Espero que tenha gostado!"
+    )
+    result = parse_research_result(raw)
+    assert result.status == STATUS_APTO
+    assert result.apto
+    assert len(result.noticias) == 1
+    assert result.noticias[0].titulo == "Meta lanca modelo aberto"

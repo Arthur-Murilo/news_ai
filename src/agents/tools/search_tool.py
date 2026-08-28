@@ -186,7 +186,32 @@ def search_new(
     if settings.exclude_domains:
         search_kwargs["exclude_domains"] = list(settings.exclude_domains)
 
-    response = _get_client().search(**search_kwargs)
+    response = None
+    last_exc = None
+    for attempt in range(2):
+        try:
+            response = _get_client().search(**search_kwargs)
+            break
+        except Exception as exc:
+            last_exc = exc
+            if attempt == 0:
+                import time
+
+                time.sleep(1)
+
+    if response is None:
+        return {
+            "query": query,
+            "error": f"Falha na consulta da API de busca: {last_exc}",
+            "results": [],
+            "images": [],
+            "search_window": {
+                "start_date": start_date.isoformat(),
+                "end_date": end_date.isoformat(),
+                "before_days": resolved_before_days,
+            },
+            "filtered_out_by_date": [],
+        }
 
     filtered_results = []
     filtered_out = []
