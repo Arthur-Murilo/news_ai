@@ -33,7 +33,38 @@ jobs:
           gh-code-scanning-compat: true
           max-allowed-issues: 2147483647
 
+      - name: Normalize SARIF runs
+        if: always()
+        run: |
+          python3 -c "
+          import json, os
+          if os.path.exists('results.sarif'):
+              with open('results.sarif', 'r', encoding='utf-8') as f:
+                  data = json.load(f)
+              runs = data.get('runs', [])
+              all_rules = []
+              all_results = []
+              for run in runs:
+                  driver = run.get('tool', {}).get('driver', {})
+                  rules = driver.get('rules', [])
+                  all_rules.extend(rules)
+                  all_results.extend(run.get('results', []))
+              data['runs'] = [{
+                  'tool': {
+                      'driver': {
+                          'name': 'Codacy Security Scan',
+                          'rules': all_rules
+                      }
+                  },
+                  'results': all_results
+              }]
+              with open('results.sarif', 'w', encoding='utf-8') as f:
+                  json.dump(data, f)
+          "
+
       - name: Upload SARIF results file
-        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: results.sarif
+          category: "codacy"
