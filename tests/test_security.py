@@ -4,13 +4,17 @@ from src.security import looks_like_html, sanitize_css, sanitize_newsletter_html
 
 
 def test_sanitize_css_keeps_safe_properties():
-    assert sanitize_css("color: #111; font-size: 16px") == "color: #111; font-size: 16px"
+    assert (
+        sanitize_css("color: #111; font-size: 16px") == "color: #111; font-size: 16px"
+    )
 
 
 def test_sanitize_css_drops_url_and_expression():
     assert sanitize_css("background: url(javascript:alert(1))") is None
     assert sanitize_css("width: expression(alert(1))") is None
-    assert sanitize_css("color: red; background: url('https://evil.test')") == "color: red"
+    assert (
+        sanitize_css("color: red; background: url('https://evil.test')") == "color: red"
+    )
 
 
 def test_sanitize_css_rejects_escapes_and_background_shorthand():

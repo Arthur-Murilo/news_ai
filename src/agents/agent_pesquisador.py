@@ -23,9 +23,7 @@ def call_agent(pergunta: str) -> str:
         system_prompt=get_system_prompt(pergunta),
     )
 
-    result = agent.invoke(
-        {"messages": [{"role": "user", "content": pergunta}]}
-    )
+    result = agent.invoke({"messages": [{"role": "user", "content": pergunta}]})
 
     content = extract_message_text(result["messages"][-1].content)
     if not content:

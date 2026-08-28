@@ -22,6 +22,14 @@ def test_route_after_formatador():
 def test_nao_apto_skips_formatter_and_email(env_defaults, monkeypatch):
     calls = {"format": 0, "email": 0}
 
+    def mock_format(_text: str) -> str:
+        calls["format"] += 1
+        return "<div>x</div>"
+
+    def mock_email(_html: str) -> str:
+        calls["email"] += 1
+        return "sent"
+
     monkeypatch.setattr(
         "src.nodes.node_pesquisador.call_agent",
         lambda _subject: json.dumps(
@@ -35,11 +43,11 @@ def test_nao_apto_skips_formatter_and_email(env_defaults, monkeypatch):
     )
     monkeypatch.setattr(
         "src.nodes.node_formatador.call_agent_formater",
-        lambda _text: calls.__setitem__("format", calls["format"] + 1) or "<div>x</div>",
+        mock_format,
     )
     monkeypatch.setattr(
         "src.nodes.node_send_email.send_email",
-        lambda _html: calls.__setitem__("email", calls["email"] + 1) or "sent",
+        mock_email,
     )
 
     result = build_graph().invoke(
@@ -63,6 +71,13 @@ def test_nao_apto_skips_formatter_and_email(env_defaults, monkeypatch):
 
 def test_apto_dry_run_writes_preview_without_sending(env_defaults, monkeypatch):
     sent = {"email": 0, "marked": 0}
+
+    def mock_email(_html: str) -> str:
+        sent["email"] += 1
+        return "sent"
+
+    def mock_mark(_payload: object) -> None:
+        sent["marked"] += 1
 
     monkeypatch.setattr(
         "src.nodes.node_pesquisador.call_agent",
@@ -89,11 +104,11 @@ def test_apto_dry_run_writes_preview_without_sending(env_defaults, monkeypatch):
     )
     monkeypatch.setattr(
         "src.nodes.node_send_email.send_email",
-        lambda _html: sent.__setitem__("email", sent["email"] + 1) or "sent",
+        mock_email,
     )
     monkeypatch.setattr(
         "src.nodes.node_send_email.mark_research_as_sent",
-        lambda _payload: sent.__setitem__("marked", sent["marked"] + 1),
+        mock_mark,
     )
 
     result = build_graph().invoke(

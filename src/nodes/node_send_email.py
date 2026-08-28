@@ -1,8 +1,8 @@
 from datetime import datetime
 from pathlib import Path
 
-from langchain_core.messages import AIMessage
 import resend
+from langchain_core.messages import AIMessage
 
 from src.security import looks_like_html, sanitize_newsletter_html
 from src.sent_news import mark_research_as_sent

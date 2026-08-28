@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import argparse
 import os
-from typing import Sequence
+from collections.abc import Sequence
 
 from langgraph.graph import END, START, StateGraph
 from rich import print

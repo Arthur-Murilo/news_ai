@@ -198,7 +198,9 @@ class SafeHtmlSanitizer(HTMLParser):
         tag: str,
         attrs: list[tuple[str, str | None]],
     ) -> tuple[str, list[tuple[str, str | None]]] | None:
-        allowed_attrs = ALLOWED_GLOBAL_ATTRIBUTES | ALLOWED_TAG_ATTRIBUTES.get(tag, set())
+        allowed_attrs = ALLOWED_GLOBAL_ATTRIBUTES | ALLOWED_TAG_ATTRIBUTES.get(
+            tag, set()
+        )
         sanitized_attrs: list[tuple[str, str | None]] = []
 
         for name, value in attrs:
@@ -246,7 +248,11 @@ class SafeHtmlSanitizer(HTMLParser):
         tag: str,
         attrs: list[tuple[str, str | None]],
     ) -> None:
-        if tag in BLOCKED_CONTENT_TAGS or self.block_depth > 0 or tag not in ALLOWED_HTML_TAGS:
+        if (
+            tag in BLOCKED_CONTENT_TAGS
+            or self.block_depth > 0
+            or tag not in ALLOWED_HTML_TAGS
+        ):
             return
 
         sanitized = self._sanitize_attrs(tag, attrs)

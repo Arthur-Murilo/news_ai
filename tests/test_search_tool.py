@@ -75,8 +75,15 @@ def test_search_filters_unsafe_urls_without_leaking_them(env_defaults, monkeypat
     titles = [item["title"] for item in response["results"]]
     assert titles == ["Sem data oficial", "Atual"]
     assert response["images"] == ["https://example.com/img.png"]
-    assert any(item["reason"] == "unsafe_source_url" for item in response["filtered_out_by_date"])
-    assert all("url" not in item for item in response["filtered_out_by_date"] if item["reason"] == "unsafe_source_url")
+    assert any(
+        item["reason"] == "unsafe_source_url"
+        for item in response["filtered_out_by_date"]
+    )
+    assert all(
+        "url" not in item
+        for item in response["filtered_out_by_date"]
+        if item["reason"] == "unsafe_source_url"
+    )
     assert captured["start_date"] == "2026-08-15"
     assert captured["end_date"] == "2026-08-22"
 

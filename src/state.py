@@ -11,7 +11,7 @@ STATUS_NAO_APTO = "nao_apto"
 STATUS_ERRO = "erro"
 
 
-class NewsletterState(TypedDict):
+class NewsletterState(TypedDict, total=False):
     messages: Annotated[list[Any], add_messages]
     subject: str
     status: str

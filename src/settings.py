@@ -1,10 +1,9 @@
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from pathlib import Path
 from zoneinfo import ZoneInfo
-
-import os
 
 from dotenv import load_dotenv
 
@@ -53,11 +52,7 @@ def _validate_range(name: str, value: int, minimum: int, maximum: int) -> int:
 def _split_csv(raw_value: str) -> tuple[str, ...]:
     if not raw_value.strip():
         return ()
-    return tuple(
-        part.strip()
-        for part in raw_value.split(",")
-        if part.strip()
-    )
+    return tuple(part.strip() for part in raw_value.split(",") if part.strip())
 
 
 @dataclass(frozen=True)
@@ -89,9 +84,7 @@ class Settings:
             raise ValueError("TAVILY_API_KEY e obrigatoria.")
 
         if self.provider_llm == "google" and not self.google_api_key:
-            raise ValueError(
-                "GOOGLE_API_KEY nao configurada para PROVIDER_LLM=google."
-            )
+            raise ValueError("GOOGLE_API_KEY nao configurada para PROVIDER_LLM=google.")
 
         if self.provider_llm == "ollama" and not self.ollama_base_url:
             raise ValueError(

@@ -1,6 +1,6 @@
-from datetime import date, datetime, timedelta
 import re
 import unicodedata
+from datetime import date, datetime, timedelta
 
 from langchain.tools import tool
 from tavily import TavilyClient
@@ -53,7 +53,8 @@ def _get_client() -> TavilyClient:
 
 def _strip_accents(value: str) -> str:
     return "".join(
-        char for char in unicodedata.normalize("NFKD", value)
+        char
+        for char in unicodedata.normalize("NFKD", value)
         if not unicodedata.combining(char)
     )
 
@@ -77,17 +78,17 @@ def _parse_date(value: object) -> date | None:
         except ValueError:
             return None
 
-    match = re.search(
+    match_named = re.search(
         r"\b(\d{1,2})\s+de\s+(\w+)\s+de\s+(\d{4})\b",
         text.lower(),
     )
-    if match:
-        day = int(match.group(1))
-        month = MONTHS_PT.get(_strip_accents(match.group(2)))
-        year = int(match.group(3))
-        if month:
+    if match_named:
+        d = int(match_named.group(1))
+        m = MONTHS_PT.get(_strip_accents(match_named.group(2)))
+        y = int(match_named.group(3))
+        if m is not None:
             try:
-                return date(year, month, day)
+                return date(y, m, d)
             except ValueError:
                 return None
 

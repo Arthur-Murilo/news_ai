@@ -12,7 +12,9 @@ def node_formatador(state: NewsletterState):
         if not text:
             text = extract_message_text(state["messages"][-1].content)
         if not text:
-            raise ValueError("O no formatador recebeu uma mensagem vazia do passo anterior.")
+            raise ValueError(
+                "O no formatador recebeu uma mensagem vazia do passo anterior."
+            )
 
         resposta_texto = call_agent_formater(text)
         if not looks_like_html(resposta_texto):

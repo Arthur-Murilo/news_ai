@@ -16,7 +16,11 @@ def test_normalize_news_url_strips_slash_and_host_case():
 def test_store_marks_and_detects_sent_urls(tmp_path):
     store = SentNewsStore(tmp_path / "sent_news.json")
     store.mark_sent(
-        [SentNewsItem(url="https://Example.com/a/", title="A", sent_at="2026-08-22T17:00:00")]
+        [
+            SentNewsItem(
+                url="https://Example.com/a/", title="A", sent_at="2026-08-22T17:00:00"
+            )
+        ]
     )
 
     assert store.already_sent("https://example.com/a")
@@ -26,7 +30,13 @@ def test_store_marks_and_detects_sent_urls(tmp_path):
 def test_filter_already_sent_drops_known_links(tmp_path):
     store = SentNewsStore(tmp_path / "sent_news.json")
     store.mark_sent(
-        [SentNewsItem(url="https://example.com/old", title="Old", sent_at="2026-08-21T17:00:00")]
+        [
+            SentNewsItem(
+                url="https://example.com/old",
+                title="Old",
+                sent_at="2026-08-21T17:00:00",
+            )
+        ]
     )
     kept, dropped = filter_already_sent(
         [

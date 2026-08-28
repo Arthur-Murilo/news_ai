@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import calendar
+import json
+import time
 from dataclasses import dataclass
 from datetime import datetime
-import json
 from pathlib import Path
-import time
 
 from src.main import run_workflow
 from src.settings import (
@@ -139,8 +139,7 @@ def run_scheduler() -> None:
 
         if _should_run_now(config, now) and last_execution_key != current_key:
             print(
-                "Executando workflow agendado em "
-                f"{now.isoformat(timespec='seconds')}."
+                f"Executando workflow agendado em {now.isoformat(timespec='seconds')}."
             )
             try:
                 run_workflow()

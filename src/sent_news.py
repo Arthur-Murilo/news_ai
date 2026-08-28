@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from datetime import datetime
-import json
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit, urlunsplit
@@ -106,7 +106,9 @@ class SentNewsStore:
         )
 
 
-def filter_already_sent(noticias: list[Any], store: SentNewsStore | None = None) -> tuple[list[Any], list[str]]:
+def filter_already_sent(
+    noticias: list[Any], store: SentNewsStore | None = None
+) -> tuple[list[Any], list[str]]:
     news_store = store or SentNewsStore()
     kept = []
     dropped: list[str] = []
@@ -122,7 +124,9 @@ def filter_already_sent(noticias: list[Any], store: SentNewsStore | None = None)
     return kept, dropped
 
 
-def mark_research_as_sent(payload: dict[str, Any], store: SentNewsStore | None = None) -> None:
+def mark_research_as_sent(
+    payload: dict[str, Any], store: SentNewsStore | None = None
+) -> None:
     news_store = store or SentNewsStore()
     sent_at = datetime.now(APP_TIMEZONE).isoformat(timespec="seconds")
     items = []

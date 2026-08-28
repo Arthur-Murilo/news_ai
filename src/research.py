@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass, field
 import json
 import re
 import unicodedata
+from dataclasses import asdict, dataclass, field
 from typing import Any
 
 from src.security import is_safe_public_url
@@ -15,7 +15,8 @@ STATUS_NAO_APTO_LABEL = "NAO APTO"
 
 def _strip_accents(value: str) -> str:
     return "".join(
-        char for char in unicodedata.normalize("NFKD", value)
+        char
+        for char in unicodedata.normalize("NFKD", value)
         if not unicodedata.combining(char)
     )
 
@@ -78,7 +79,9 @@ def _as_str_list(value: object) -> list[str]:
         text = value.strip()
         return [text] if text else []
     if isinstance(value, list):
-        return [item.strip() for item in (_as_str(part) for part in value) if item.strip()]
+        return [
+            item.strip() for item in (_as_str(part) for part in value) if item.strip()
+        ]
     return []
 
 
@@ -102,7 +105,9 @@ def _noticia_from_dict(raw: object) -> NoticiaValidada | None:
     if link and not is_safe_public_url(link):
         link = ""
 
-    imagem = _as_str(_pick(raw, "imagem_sugerida", "imagem", "image", "suggested_image"))
+    imagem = _as_str(
+        _pick(raw, "imagem_sugerida", "imagem", "image", "suggested_image")
+    )
     if imagem and not is_safe_public_url(imagem):
         imagem = ""
 
@@ -112,10 +117,14 @@ def _noticia_from_dict(raw: object) -> NoticiaValidada | None:
         data=_as_str(_pick(raw, "data", "date", "published_date")),
         link=link,
         imagem_sugerida=imagem,
-        o_que_aconteceu=_as_str(_pick(raw, "o_que_aconteceu", "what_happened", "resumo")),
+        o_que_aconteceu=_as_str(
+            _pick(raw, "o_que_aconteceu", "what_happened", "resumo")
+        ),
         por_que_e_relevante=_as_str(_pick(raw, "por_que_e_relevante", "why_relevant")),
         contexto_adicional=_as_str(_pick(raw, "contexto_adicional", "context")),
-        evidencias=_as_str(_pick(raw, "evidencias", "evidencias_encontradas", "evidence")),
+        evidencias=_as_str(
+            _pick(raw, "evidencias", "evidencias_encontradas", "evidence")
+        ),
     )
 
 
@@ -184,7 +193,9 @@ def _parse_text_noticias(text: str) -> list[NoticiaValidada]:
                     fields[current_key] = match.group(2).strip()
                 continue
             if current_key:
-                fields[current_key] = f"{fields.get(current_key, '')} {line.strip()}".strip()
+                fields[current_key] = (
+                    f"{fields.get(current_key, '')} {line.strip()}".strip()
+                )
 
         noticia = _noticia_from_dict(fields)
         if noticia:
@@ -262,7 +273,9 @@ def parse_research_result(raw_text: str) -> ResultadoPesquisa:
     links_raw = _section_text(text, "Links consultados:", [])
 
     resultado = ResultadoPesquisa(
-        status=normalize_research_status(status_match.group(1) if status_match else STATUS_NAO_APTO),
+        status=normalize_research_status(
+            status_match.group(1) if status_match else STATUS_NAO_APTO
+        ),
         tema=_as_str(tema_match.group(1) if tema_match else ""),
         janela_pesquisa=_as_str(janela_match.group(1) if janela_match else ""),
         resumo=_section_text(
@@ -277,9 +290,7 @@ def parse_research_result(raw_text: str) -> ResultadoPesquisa:
             ["Pontos de atencao:", "Links consultados:"],
         ),
         pontos_atencao=[
-            line.strip(" -")
-            for line in pontos_raw.splitlines()
-            if line.strip(" -")
+            line.strip(" -") for line in pontos_raw.splitlines() if line.strip(" -")
         ],
         links_consultados=[
             part.strip(" -")
