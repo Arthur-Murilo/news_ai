@@ -61,7 +61,7 @@ O arquivo [`.env-example`](.env-example) documenta a configuracao minima. As var
 - `SCHEDULE_HOUR`: hora de execucao no timezone `America/Sao_Paulo`. Faixa valida: `0` a `23`.
 - `SCHEDULE_WEEKDAY`: usado apenas quando `SCHEDULE_FREQUENCY=weekly`. Faixa valida: `1` a `7`, com `1=segunda` e `7=domingo`.
 - `SCHEDULE_DAY`: usado apenas quando `SCHEDULE_FREQUENCY=monthly`. Faixa valida: `1` a `31`.
-- `LLM_TIMEOUT_SECONDS`: timeout de cada chamada ao modelo. Faixa valida: `10` a `1800`. Padrao: `300`.
+- `LLM_TIMEOUT_SECONDS`: timeout de leitura de cada chamada ao modelo (intervalo maximo entre chunks do stream). Faixa valida: `10` a `1800`. Padrao: `300`. Erros transientes de conexao (como WinError 10054) sao retentados automaticamente.
 - `LLM_MAX_OUTPUT_TOKENS`: limite de tokens de saida dos agentes. Faixa valida: `2000` a `32768`. Padrao: `16384`.
 - `LOG_LEVEL`: nivel de log do workflow (`DEBUG`, `INFO`, `WARNING`, `ERROR`). Padrao: `INFO`.
 

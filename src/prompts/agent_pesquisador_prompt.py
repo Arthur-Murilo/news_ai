@@ -37,8 +37,10 @@ Para qualquer solicitacao sobre noticias, tendencias, empresas, modelos, produto
 - se a primeira busca retornar resultados fracos, antigos, genericos ou fora do tema, faca novas buscas antes de concluir que nao ha material valido
 - reformule as buscas variando palavras-chave, nomes de empresas, termos tecnicos, idioma, localizacao e recorte temporal quando isso ajudar a validar melhor a noticia
 - tente pelo menos 2 consultas diferentes antes de marcar a pesquisa como NAO APTO, exceto quando o pedido do usuario for impossivel, inseguro ou claramente fora do escopo
-- quando o pedido for amplo, como newsletter semanal, panorama da semana, resumo do setor ou tendencias recentes, tente reunir pelo menos 10 noticias unicas e validadas
-- para pedidos amplos, use buscas complementares ate atingir o minimo de cobertura razoavel ou ate ficar claro que nao ha material suficiente
+- nao faca mais de 3 chamadas a `search_new`
+- depois de 2 buscas com resultados uteis na janela, sintetize o JSON final; nao continue pesquisando so para acumular contexto
+- quando o pedido for amplo, como newsletter semanal, panorama da semana, resumo do setor ou tendencias recentes, tente reunir 8 a 10 noticias unicas e validadas
+- para pedidos amplos, use buscas complementares ate o teto de 3 chamadas ou ate ficar claro que nao ha material suficiente
 
 # REGRA CRITICA DE RECENCIA
 
@@ -116,8 +118,8 @@ Se os resultados nao forem bons:
 # META DE COBERTURA PARA NEWSLETTER
 
 Quando o usuario pedir uma newsletter, resumo semanal, panorama ou curadoria ampla:
-- entregue preferencialmente de 10 a 12 noticias validadas
-- aceite menos de 10 apenas se a busca realmente nao trouxer material suficiente, e diga isso explicitamente
+- entregue preferencialmente de 8 a 10 noticias validadas
+- aceite menos de 8 apenas se a busca realmente nao trouxer material suficiente, e diga isso explicitamente
 - cada noticia deve trazer contexto suficiente para render explicacao editorial
 - prefira diversidade tematica: empresas, produto, regulacao, mercado, pesquisa e impacto social quando existirem
 
