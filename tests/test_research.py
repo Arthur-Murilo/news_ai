@@ -131,3 +131,54 @@ def test_parse_json_with_intro_and_trailing_commas():
     assert result.apto
     assert len(result.noticias) == 1
     assert result.noticias[0].titulo == "Meta lanca modelo aberto"
+
+
+def test_parse_truncated_json_recovers_noticias():
+    raw = """{
+  "status": "APTO PARA PROXIMA FASE",
+  "tema": "Novos modelos de LLM",
+  "janela_pesquisa": "2026-09-03 a 2026-09-10",
+  "resumo": "Semana de lancamentos.",
+  "noticias": [
+    {
+      "titulo": "OpenAI lanca GPT-6 Astra",
+      "fonte": "TechCrunch",
+      "data": "2026-09-04",
+      "link": "https://techcrunch.com/gpt-6",
+      "o_que_aconteceu": "Lancamento",
+      "por_que_e_relevante": "Novo frontier",
+      "contexto_adicional": "Detalhes",
+      "evidencias": "Post oficial"
+    },
+    {
+      "titulo": "Gemini 3.8 Flash",
+      "fonte": "The Verge",
+      "link": "https://theverge.com/gemini"
+    }
+  ],
+  "contexto_impacto": "Setembro 2026 marca ponto de inflexao: (1) Convergencia no topo
+"""
+    result = parse_research_result(raw)
+    assert result.status == STATUS_APTO
+    assert result.apto
+    assert len(result.noticias) == 2
+    assert result.noticias[0].titulo == "OpenAI lanca GPT-6 Astra"
+    assert result.noticias[1].titulo == "Gemini 3.8 Flash"
+
+
+def test_parse_json_with_invalid_apostrophe_escape():
+    raw = """{
+  "status": "APTO PARA PROXIMA FASE",
+  "tema": "IA",
+  "noticias": [
+    {
+      "titulo": "Modelo X",
+      "link": "https://example.com/x",
+      "evidencias": "He said \\'hello\\' in the announcement"
+    }
+  ]
+}"""
+    result = parse_research_result(raw)
+    assert result.status == STATUS_APTO
+    assert result.apto
+    assert result.noticias[0].titulo == "Modelo X"

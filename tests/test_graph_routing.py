@@ -189,3 +189,56 @@ def test_successful_send_marks_news_as_sent(env_defaults, monkeypatch):
     )
     assert second["status"] == STATUS_NAO_APTO
     assert "ja foram enviadas" in second["research_text"]
+
+
+def test_truncated_json_from_researcher_reaches_formatter(env_defaults, monkeypatch):
+    calls = {"format": 0}
+
+    def mock_format(_text: str) -> str:
+        calls["format"] += 1
+        return "<div><h1>News AI</h1><p>Astra</p></div>"
+
+    monkeypatch.setattr(
+        "src.nodes.node_pesquisador.call_agent",
+        lambda _subject: (
+            "{\n"
+            '  "status": "APTO PARA PROXIMA FASE",\n'
+            '  "tema": "Novos modelos de LLM",\n'
+            '  "resumo": "Semana de lancamentos.",\n'
+            '  "noticias": [\n'
+            "    {\n"
+            '      "titulo": "OpenAI lanca GPT-6 Astra",\n'
+            '      "link": "https://techcrunch.com/gpt-6"\n'
+            "    }\n"
+            "  ],\n"
+            '  "contexto_impacto": "Setembro 2026 marca ponto de inflexao: (1) Convergencia'
+        ),
+    )
+    monkeypatch.setattr(
+        "src.nodes.node_formatador.call_agent_formater",
+        mock_format,
+    )
+    monkeypatch.setattr(
+        "src.nodes.node_send_email.send_email",
+        lambda _html: "sent",
+    )
+
+    result = build_graph().invoke(
+        {
+            "messages": [{"role": "user", "content": "IA"}],
+            "subject": "IA",
+            "status": STATUS_PENDING,
+            "research_text": "",
+            "research_payload": {},
+            "html": "",
+            "error": "",
+            "skip_email": True,
+            "dry_run": True,
+            "email_result": "",
+        }
+    )
+
+    assert result["status"] == STATUS_APTO
+    assert calls["format"] == 1
+    assert "Envio ignorado" in result["email_result"]
+    assert (env_defaults / "preview.html").exists()

@@ -2,17 +2,21 @@ from __future__ import annotations
 
 import calendar
 import json
+import logging
 import time
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
+from src.logging_config import setup_logging
 from src.main import run_workflow
 from src.settings import (
     ALLOWED_SCHEDULE_FREQUENCIES,
     APP_TIMEZONE,
     load_settings,
 )
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -122,15 +126,15 @@ def _describe_schedule(config: ScheduleConfig) -> str:
 
 
 def run_scheduler() -> None:
+    setup_logging()
     config = load_schedule_config()
     last_execution_key = load_last_execution_key()
     now = _now()
 
-    print(
-        "Scheduler iniciado para executar "
-        f"{_describe_schedule(config)}. "
-        f"Timezone: America/Sao_Paulo. Hora atual: "
-        f"{now.isoformat(timespec='seconds')}."
+    logger.info(
+        "Scheduler iniciado para executar %s. Timezone: America/Sao_Paulo. Hora atual: %s.",
+        _describe_schedule(config),
+        now.isoformat(timespec="seconds"),
     )
 
     while True:
@@ -138,16 +142,18 @@ def run_scheduler() -> None:
         current_key = _execution_key(config, now)
 
         if _should_run_now(config, now) and last_execution_key != current_key:
-            print(
-                f"Executando workflow agendado em {now.isoformat(timespec='seconds')}."
+            logger.info(
+                "Executando workflow agendado em %s.",
+                now.isoformat(timespec="seconds"),
             )
             try:
                 run_workflow()
-            except Exception as exc:
-                print(f"Falha na execucao agendada: {exc}")
+            except Exception:
+                logger.exception("Falha na execucao agendada.")
             else:
                 save_last_execution_key(current_key)
                 last_execution_key = current_key
+                logger.info("Execucao agendada concluida. chave=%s", current_key)
 
         _sleep_until_next_minute()
 
