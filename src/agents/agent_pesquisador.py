@@ -4,14 +4,22 @@ import logging
 import time
 
 from langchain.agents import create_agent
+from langchain.agents.middleware import ModelRetryMiddleware
 from rich import print
 
 from src.agents.tools.search_tool import search_new
-from src.llm import create_chat_model
+from src.llm import (
+    LLM_RETRY_ATTEMPTS,
+    create_chat_model,
+    describe_llm_error,
+    is_transient_llm_error,
+)
 from src.prompts.agent_pesquisador_prompt import get_system_prompt
 from src.utils import extract_message_text
 
 logger = logging.getLogger(__name__)
+
+AGENT_RECURSION_LIMIT = 16
 
 _model = None
 
@@ -32,6 +40,16 @@ def _count_tool_messages(messages: list[object]) -> int:
     )
 
 
+def _should_retry_model(error: Exception) -> bool:
+    retry = is_transient_llm_error(error)
+    if retry:
+        logger.warning(
+            "Erro transiente na chamada do modelo pesquisador; repetindo. erro=%s",
+            error,
+        )
+    return retry
+
+
 def call_agent(pergunta: str) -> str:
     logger.info("Agente pesquisador invocando LLM. tema=%s", pergunta)
     started = time.perf_counter()
@@ -39,9 +57,26 @@ def call_agent(pergunta: str) -> str:
         model=_get_model(),
         tools=[search_new],
         system_prompt=get_system_prompt(pergunta),
+        middleware=[
+            ModelRetryMiddleware(
+                max_retries=LLM_RETRY_ATTEMPTS,
+                backoff_factor=2.0,
+                initial_delay=2.0,
+                retry_on=_should_retry_model,
+                on_failure="error",
+            )
+        ],
     )
 
-    result = agent.invoke({"messages": [{"role": "user", "content": pergunta}]})
+    try:
+        result = agent.invoke(
+            {"messages": [{"role": "user", "content": pergunta}]},
+            config={"recursion_limit": AGENT_RECURSION_LIMIT},
+        )
+    except Exception as exc:
+        if is_transient_llm_error(exc):
+            raise RuntimeError(describe_llm_error(exc)) from exc
+        raise
     messages = result["messages"]
     content = extract_message_text(messages[-1].content)
     if not content:

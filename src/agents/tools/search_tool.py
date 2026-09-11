@@ -21,6 +21,19 @@ from src.settings import (
 logger = logging.getLogger(__name__)
 
 _client: TavilyClient | None = None
+MAX_RESULT_CONTENT_CHARS = 800
+MAX_SEARCH_IMAGES = 5
+MAX_FILTERED_OUT_ITEMS = 8
+_RESULT_KEYS = (
+    "title",
+    "url",
+    "content",
+    "published_date",
+    "date",
+    "validated_published_date",
+    "score",
+    "source",
+)
 
 MONTHS_PT = {
     "janeiro": 1,
@@ -134,6 +147,56 @@ def _sanitize_result(result: dict) -> dict | None:
     return sanitized
 
 
+def _truncate_text(value: object, limit: int) -> str:
+    text = str(value or "").strip()
+    if len(text) <= limit:
+        return text
+    return text[: limit - 1].rstrip() + "…"
+
+
+def _compact_result(result: dict) -> dict:
+    compacted: dict = {}
+    for key in _RESULT_KEYS:
+        if key not in result:
+            continue
+        value = result[key]
+        if key == "content":
+            compacted[key] = _truncate_text(value, MAX_RESULT_CONTENT_CHARS)
+        else:
+            compacted[key] = value
+
+    image = result.get("image")
+    if isinstance(image, str) and is_safe_public_url(image):
+        compacted["image"] = image
+    return compacted
+
+
+def _compact_search_response(
+    *,
+    query: str,
+    results: list[dict],
+    images: list[str],
+    start_date: date,
+    end_date: date,
+    before_days: int,
+    filtered_out: list[dict],
+) -> dict:
+    return {
+        "query": query,
+        "results": [_compact_result(item) for item in results],
+        "images": images[:MAX_SEARCH_IMAGES],
+        "search_window": {
+            "start_date": start_date.isoformat(),
+            "end_date": end_date.isoformat(),
+            "before_days": before_days,
+            "date_filter_rule": (
+                "Reject only official published_date/date fields outside this window."
+            ),
+        },
+        "filtered_out_by_date": filtered_out[:MAX_FILTERED_OUT_ITEMS],
+    }
+
+
 @tool
 def search_new(
     query: str,
@@ -180,7 +243,7 @@ def search_new(
         "topic": "news",
         "max_results": resolved_max_results,
         "include_images": True,
-        "include_favicon": True,
+        "include_favicon": False,
         "start_date": start_date.strftime("%Y-%m-%d"),
         "end_date": end_date.strftime("%Y-%m-%d"),
     }
@@ -217,18 +280,17 @@ def search_new(
 
     if response is None:
         logger.error("Busca Tavily esgotou as tentativas: %s", last_exc)
-        return {
-            "query": query,
-            "error": f"Falha na consulta da API de busca: {last_exc}",
-            "results": [],
-            "images": [],
-            "search_window": {
-                "start_date": start_date.isoformat(),
-                "end_date": end_date.isoformat(),
-                "before_days": resolved_before_days,
-            },
-            "filtered_out_by_date": [],
-        }
+        payload = _compact_search_response(
+            query=query,
+            results=[],
+            images=[],
+            start_date=start_date,
+            end_date=end_date,
+            before_days=resolved_before_days,
+            filtered_out=[],
+        )
+        payload["error"] = f"Falha na consulta da API de busca: {last_exc}"
+        return payload
 
     filtered_results = []
     filtered_out = []
@@ -260,30 +322,26 @@ def search_new(
             sanitized_result["validated_published_date"] = published_date.isoformat()
         filtered_results.append(sanitized_result)
 
-    response["results"] = filtered_results
-    response["images"] = _sanitize_url_list(response.get("images"))
-    response["search_window"] = {
-        "start_date": start_date.isoformat(),
-        "end_date": end_date.isoformat(),
-        "before_days": resolved_before_days,
-        "date_filter_rule": (
-            "Reject only official published_date/date fields outside this window. "
-            "Dates found in title or body are not used as a veto."
-        ),
-    }
-    response["filtered_out_by_date"] = filtered_out
-    response["safety"] = {
-        "allowed_url_schemes": ["http", "https"],
-        "blocked_hosts": ["localhost", "private_ips", "loopback_ips"],
-    }
-
-    logger.info(
-        "Busca concluida. query=%r resultados=%s filtrados=%s",
-        query,
-        len(filtered_results),
-        len(filtered_out),
+    payload = _compact_search_response(
+        query=query,
+        results=filtered_results,
+        images=_sanitize_url_list(response.get("images")),
+        start_date=start_date,
+        end_date=end_date,
+        before_days=resolved_before_days,
+        filtered_out=filtered_out,
     )
-    return response
+    payload_chars = sum(
+        len(str(item.get("content", ""))) for item in payload["results"]
+    )
+    logger.info(
+        "Busca concluida. query=%r resultados=%s filtrados=%s conteudo=%s caracteres",
+        query,
+        len(payload["results"]),
+        len(filtered_out),
+        payload_chars,
+    )
+    return payload
 
 
 # Kept for older imports and tests that want the default env window.

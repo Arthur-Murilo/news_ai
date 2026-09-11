@@ -122,3 +122,45 @@ def test_search_handles_client_exception(env_defaults, monkeypatch):
     response = search_new.invoke({"query": "IA", "today": "2026-08-22"})
     assert "error" in response
     assert response["results"] == []
+
+
+def test_search_compacts_long_content_and_drops_favicon(env_defaults, monkeypatch):
+    class FakeClient:
+        def search(self, **kwargs):
+            assert kwargs["include_favicon"] is False
+            return {
+                "results": [
+                    {
+                        "title": "Atual",
+                        "url": "https://example.com/fresh",
+                        "published_date": "2026-08-20",
+                        "content": "A" * 5000,
+                        "favicon": "https://example.com/favicon.ico",
+                        "raw_content": "nao deve ir para o modelo",
+                    }
+                ],
+                "images": ["https://example.com/img.png"] * 8,
+            }
+
+    monkeypatch.setattr(
+        "src.agents.tools.search_tool._get_client",
+        lambda: FakeClient(),
+    )
+
+    response = search_new.invoke(
+        {
+            "query": "IA",
+            "today": "2026-08-22",
+            "before_days": 7,
+            "max_results": 10,
+        }
+    )
+
+    assert len(response["results"]) == 1
+    item = response["results"][0]
+    assert item["title"] == "Atual"
+    assert len(item["content"]) <= 800
+    assert "favicon" not in item
+    assert "raw_content" not in item
+    assert "safety" not in response
+    assert len(response["images"]) == 5
