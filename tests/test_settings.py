@@ -63,3 +63,16 @@ def test_load_settings_reads_llm_timeout_seconds(env_defaults, monkeypatch):
     monkeypatch.setenv("LLM_TIMEOUT_SECONDS", "450")
     settings = load_settings()
     assert settings.llm_timeout_seconds == 450
+
+
+def test_load_settings_reads_llm_max_output_tokens(env_defaults, monkeypatch):
+    monkeypatch.setenv("LLM_MAX_OUTPUT_TOKENS", "16384")
+    settings = load_settings()
+    assert settings.llm_max_output_tokens == 16384
+
+
+def test_llm_max_output_tokens_out_of_range(env_defaults, monkeypatch):
+    monkeypatch.setenv("LLM_MAX_OUTPUT_TOKENS", "100")
+
+    with pytest.raises(ValueError, match="LLM_MAX_OUTPUT_TOKENS"):
+        load_settings()

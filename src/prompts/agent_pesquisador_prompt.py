@@ -123,7 +123,9 @@ Quando o usuario pedir uma newsletter, resumo semanal, panorama ou curadoria amp
 
 # FORMATO DE SAIDA
 
-Retorne APENAS um JSON valido, sem markdown e sem texto fora do objeto, com este schema:
+Retorne APENAS um JSON valido, sem markdown e sem texto fora do objeto, com este schema.
+O objeto JSON precisa estar completo e fechado. Nunca corte no meio de uma string.
+Se o orcamento de tokens estiver curto, encerre as noticias ja validadas, feche arrays e objetos e omita campos finais em vez de deixar JSON invalido.
 
 {{
   "status": "APTO PARA PROXIMA FASE" ou "NAO APTO",

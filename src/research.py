@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 import unicodedata
 from dataclasses import asdict, dataclass, field
@@ -8,6 +9,8 @@ from typing import Any
 
 from src.security import is_safe_public_url
 from src.state import STATUS_APTO, STATUS_NAO_APTO
+
+logger = logging.getLogger(__name__)
 
 STATUS_APTO_LABEL = "APTO PARA PROXIMA FASE"
 STATUS_NAO_APTO_LABEL = "NAO APTO"
@@ -133,9 +136,63 @@ def _clean_json_candidate(candidate: str) -> str:
     return re.sub(r",\s*([}\]])", r"\1", candidate)
 
 
+def _repair_truncated_json(text: str) -> str:
+    """Close unterminated strings and missing braces/brackets from truncated JSON."""
+    repaired = text.strip().replace("\\'", "'")
+    in_string = False
+    escape = False
+    stack: list[str] = []
+
+    for char in repaired:
+        if in_string:
+            if escape:
+                escape = False
+            elif char == "\\":
+                escape = True
+            elif char == '"':
+                in_string = False
+            continue
+
+        if char == '"':
+            in_string = True
+            continue
+        if char == "{":
+            stack.append("}")
+        elif char == "[":
+            stack.append("]")
+        elif char in "}]" and stack and stack[-1] == char:
+            stack.pop()
+
+    if in_string:
+        repaired += '"'
+    repaired += "".join(reversed(stack))
+    return repaired
+
+
+def _loads_json_dict(candidate: str) -> dict[str, Any] | None:
+    attempts = (
+        candidate,
+        _clean_json_candidate(candidate),
+        _repair_truncated_json(candidate),
+        _clean_json_candidate(_repair_truncated_json(candidate)),
+    )
+    for index, attempt in enumerate(attempts):
+        try:
+            parsed = json.loads(attempt, strict=False)
+        except Exception:
+            continue
+        if isinstance(parsed, dict):
+            if index >= 2:
+                logger.warning(
+                    "JSON do pesquisador estava incompleto ou invalido; payload recuperado."
+                )
+            return parsed
+    return None
+
+
 def _extract_json_payload(text: str) -> dict[str, Any] | None:
     stripped = text.strip()
-    candidates = []
+    candidates: list[str] = []
 
     # 1. Search for fenced blocks
     for match in re.finditer(r"```(?:json)?\s*(\{.*?\})\s*```", stripped, re.DOTALL):
@@ -144,24 +201,32 @@ def _extract_json_payload(text: str) -> dict[str, Any] | None:
     if fenced_greedy:
         candidates.append(fenced_greedy.group(1).strip())
 
-    # 2. Extract outermost { ... }
+    # 2. Extract from the first object, preferring the possibly truncated tail.
     start = stripped.find("{")
-    end = stripped.rfind("}")
-    if start != -1 and end > start:
-        candidates.append(stripped[start : end + 1].strip())
+    if start != -1:
+        candidates.append(stripped[start:].strip())
+        end = stripped.rfind("}")
+        if end > start:
+            candidates.append(stripped[start : end + 1].strip())
 
-    if stripped.startswith("{"):
-        candidates.append(stripped)
-
+    seen: set[str] = set()
     for candidate in candidates:
-        for attempt in (candidate, _clean_json_candidate(candidate)):
-            try:
-                parsed = json.loads(attempt, strict=False)
-                if isinstance(parsed, dict):
-                    return parsed
-            except Exception:
-                continue
+        if not candidate or candidate in seen:
+            continue
+        seen.add(candidate)
+        parsed = _loads_json_dict(candidate)
+        if parsed is not None:
+            return parsed
 
+    if stripped.startswith("{") or "```json" in stripped[:120].lower():
+        logger.warning(
+            "Nao foi possivel extrair JSON da resposta do pesquisador (%s caracteres).",
+            len(stripped),
+        )
+    else:
+        logger.info(
+            "Resposta do pesquisador nao veio como JSON; tentando parser de texto."
+        )
     return None
 
 

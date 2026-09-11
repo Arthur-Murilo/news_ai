@@ -61,6 +61,11 @@ O arquivo [`.env-example`](.env-example) documenta a configuracao minima. As var
 - `SCHEDULE_HOUR`: hora de execucao no timezone `America/Sao_Paulo`. Faixa valida: `0` a `23`.
 - `SCHEDULE_WEEKDAY`: usado apenas quando `SCHEDULE_FREQUENCY=weekly`. Faixa valida: `1` a `7`, com `1=segunda` e `7=domingo`.
 - `SCHEDULE_DAY`: usado apenas quando `SCHEDULE_FREQUENCY=monthly`. Faixa valida: `1` a `31`.
+- `LLM_TIMEOUT_SECONDS`: timeout de cada chamada ao modelo. Faixa valida: `10` a `1800`. Padrao: `300`.
+- `LLM_MAX_OUTPUT_TOKENS`: limite de tokens de saida dos agentes. Faixa valida: `2000` a `32768`. Padrao: `16384`.
+- `LOG_LEVEL`: nivel de log do workflow (`DEBUG`, `INFO`, `WARNING`, `ERROR`). Padrao: `INFO`.
+
+Durante a execucao, o fluxo registra cada etapa com o `logging` do Python: inicio do workflow, buscas, parse da pesquisa, formatacao, preview/envio e o motivo de encerrar cedo. Use `LOG_LEVEL=DEBUG` para ver tambem logs de bibliotecas HTTP.
 
 Compatibilidade: os agentes aceitam `AI_MODEL` como fallback, mas a configuracao recomendada continua sendo separar os modelos por agente.
 
@@ -101,6 +106,7 @@ Opcoes de CLI:
 ```bash
 uv run python -m src.main --subject "Agentes de IA" --days 5 --dry-run
 uv run python -m src.main --skip-email
+uv run python -m src.main --dry-run --log-level DEBUG
 ```
 
 - `--dry-run` e `--skip-email` nao disparam o Resend. O HTML final e gravado em `NEWSLETTER_PREVIEW_PATH`.
@@ -196,6 +202,7 @@ src/
     agent_formatador_prompt.py
     agent_pesquisador_prompt.py
   main.py
+  logging_config.py
   research.py
   scheduler.py
   security.py

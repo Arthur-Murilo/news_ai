@@ -22,6 +22,9 @@ MAX_BEFORE_DAYS = 30
 MIN_MAX_RESULTS = 1
 MAX_MAX_RESULTS = 20
 DEFAULT_SUBJECT = "Inteligencia Artificial"
+DEFAULT_LLM_MAX_OUTPUT_TOKENS = 16384
+MIN_LLM_MAX_OUTPUT_TOKENS = 2000
+MAX_LLM_MAX_OUTPUT_TOKENS = 32768
 
 
 def _read_optional(name: str, default: str = "") -> str:
@@ -79,6 +82,7 @@ class Settings:
     schedule_weekday: int
     schedule_day: int
     llm_timeout_seconds: int = 300
+    llm_max_output_tokens: int = DEFAULT_LLM_MAX_OUTPUT_TOKENS
 
     def validate_for_workflow(self, *, skip_email: bool = False) -> None:
         if not self.tavily_api_key:
@@ -176,5 +180,11 @@ def load_settings() -> Settings:
             _read_int("LLM_TIMEOUT_SECONDS", 300),
             10,
             1800,
+        ),
+        llm_max_output_tokens=_validate_range(
+            "LLM_MAX_OUTPUT_TOKENS",
+            _read_int("LLM_MAX_OUTPUT_TOKENS", DEFAULT_LLM_MAX_OUTPUT_TOKENS),
+            MIN_LLM_MAX_OUTPUT_TOKENS,
+            MAX_LLM_MAX_OUTPUT_TOKENS,
         ),
     )

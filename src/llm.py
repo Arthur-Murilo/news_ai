@@ -1,3 +1,4 @@
+import logging
 from collections.abc import Mapping
 from typing import Any
 
@@ -7,6 +8,8 @@ from src.settings import (
     SUPPORTED_PROVIDERS,
     load_settings,
 )
+
+logger = logging.getLogger(__name__)
 
 # Re-exported for existing imports and tests.
 __all__ = [
@@ -36,13 +39,22 @@ def create_chat_model(model_env_var: str):
     else:
         model_name = settings.model_agent_search
 
+    max_output_tokens = settings.llm_max_output_tokens
+    logger.info(
+        "Criando modelo %s via %s (max_output_tokens=%s timeout=%ss)",
+        model_name,
+        settings.provider_llm,
+        max_output_tokens,
+        settings.llm_timeout_seconds,
+    )
+
     if settings.provider_llm == "google":
         from langchain_google_genai import ChatGoogleGenerativeAI
 
         return ChatGoogleGenerativeAI(
             model=model_name,
             temperature=0.3,
-            max_tokens=8000,
+            max_tokens=max_output_tokens,
             timeout=float(settings.llm_timeout_seconds),
             max_retries=3,
         )
@@ -58,7 +70,7 @@ def create_chat_model(model_env_var: str):
     kwargs: dict[str, Any] = {
         "model": model_name,
         "temperature": 0.3,
-        "num_predict": 8000,
+        "num_predict": max_output_tokens,
     }
 
     if settings.ollama_base_url:

@@ -1,3 +1,4 @@
+import logging
 import re
 import unicodedata
 from datetime import date, datetime, timedelta
@@ -16,6 +17,8 @@ from src.settings import (
     MIN_MAX_RESULTS,
     load_settings,
 )
+
+logger = logging.getLogger(__name__)
 
 _client: TavilyClient | None = None
 
@@ -186,6 +189,14 @@ def search_new(
     if settings.exclude_domains:
         search_kwargs["exclude_domains"] = list(settings.exclude_domains)
 
+    logger.info(
+        "Buscando noticias. query=%r janela=%s..%s max=%s",
+        query,
+        start_date.isoformat(),
+        end_date.isoformat(),
+        resolved_max_results,
+    )
+
     response = None
     last_exc = None
     for attempt in range(2):
@@ -194,12 +205,18 @@ def search_new(
             break
         except Exception as exc:
             last_exc = exc
+            logger.warning(
+                "Falha na consulta Tavily (tentativa %s/2): %s",
+                attempt + 1,
+                exc,
+            )
             if attempt == 0:
                 import time
 
                 time.sleep(1)
 
     if response is None:
+        logger.error("Busca Tavily esgotou as tentativas: %s", last_exc)
         return {
             "query": query,
             "error": f"Falha na consulta da API de busca: {last_exc}",
@@ -260,6 +277,12 @@ def search_new(
         "blocked_hosts": ["localhost", "private_ips", "loopback_ips"],
     }
 
+    logger.info(
+        "Busca concluida. query=%r resultados=%s filtrados=%s",
+        query,
+        len(filtered_results),
+        len(filtered_out),
+    )
     return response
 
 

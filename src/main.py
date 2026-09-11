@@ -1,30 +1,46 @@
 from __future__ import annotations
 
 import argparse
+import logging
 import os
+import time
 from collections.abc import Sequence
 
 from langgraph.graph import END, START, StateGraph
 from rich import print
 
+from src.logging_config import setup_logging
 from src.nodes.node_formatador import node_formatador
 from src.nodes.node_pesquisador import node_pesquisador
 from src.nodes.node_send_email import node_send_email
 from src.settings import load_settings
 from src.state import STATUS_APTO, STATUS_ERRO, STATUS_PENDING, NewsletterState
 
+logger = logging.getLogger(__name__)
+
 _compiled_graph = None
 
 
 def route_after_pesquisador(state: NewsletterState) -> str:
     if state.get("status") == STATUS_APTO:
+        logger.info("Roteamento apos pesquisador: seguir para formatador")
         return "formatador"
+    logger.info(
+        "Roteamento apos pesquisador: encerrar fluxo. status=%s",
+        state.get("status"),
+    )
     return END
 
 
 def route_after_formatador(state: NewsletterState) -> str:
     if state.get("status") == STATUS_ERRO:
+        logger.info(
+            "Roteamento apos formatador: encerrar fluxo. status=%s erro=%s",
+            state.get("status"),
+            state.get("error") or "",
+        )
         return END
+    logger.info("Roteamento apos formatador: seguir para envio de email")
     return "enviar_email"
 
 
@@ -74,6 +90,11 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         action="store_true",
         help="Nao envia email ao final do fluxo.",
     )
+    parser.add_argument(
+        "--log-level",
+        default=None,
+        help="Nivel de log (DEBUG, INFO, WARNING, ERROR). Padrao: LOG_LEVEL ou INFO.",
+    )
     return parser.parse_args(argv)
 
 
@@ -82,12 +103,26 @@ def run_workflow(
     *,
     skip_email: bool = False,
     dry_run: bool = False,
+    log_level: str | None = None,
 ) -> str:
+    setup_logging(log_level)
     settings = load_settings()
     skip_send = skip_email or dry_run
     settings.validate_for_workflow(skip_email=skip_send)
 
     workflow_subject = (subject or settings.subject).strip()
+    logger.info(
+        "Workflow iniciado. tema=%s provider=%s modelo_pesquisa=%s "
+        "modelo_formatacao=%s janela=%sdias dry_run=%s skip_email=%s",
+        workflow_subject,
+        settings.provider_llm,
+        settings.model_agent_search,
+        settings.model_agent_formater,
+        settings.before_days,
+        dry_run,
+        skip_send,
+    )
+    started = time.perf_counter()
     graph = get_graph()
     response = graph.invoke(
         {
@@ -104,9 +139,22 @@ def run_workflow(
         }
     )
 
-    if response.get("status") == STATUS_ERRO:
+    elapsed = time.perf_counter() - started
+    status = response.get("status")
+    if status == STATUS_ERRO:
+        logger.error(
+            "Workflow falhou em %.1fs. erro=%s",
+            elapsed,
+            response.get("error") or "Workflow falhou.",
+        )
         raise RuntimeError(response.get("error") or "Workflow falhou.")
 
+    logger.info(
+        "Workflow concluido em %.1fs. status=%s email_result=%s",
+        elapsed,
+        status,
+        response.get("email_result") or "",
+    )
     final_message = str(
         response.get("email_result")
         or response.get("research_text")
@@ -124,6 +172,7 @@ def main(argv: Sequence[str] | None = None) -> str:
         subject=args.subject,
         skip_email=args.skip_email or args.dry_run,
         dry_run=args.dry_run,
+        log_level=args.log_level,
     )
 
 
